@@ -1,0 +1,36 @@
+{
+  "name": "uxi-sensor-clone",
+  "version": "1.0.0",
+  "description": "Self-hosted synthetic network sensor and user experience insight platform inspired by HPE Aruba Networking UXI",
+  "main": "server/src/server.js",
+  "bin": {
+    "uxi-sensor": "client/bin/uxi-sensor"
+  },
+  "scripts": {
+    "start": "node server/src/server.js",
+    "server": "node server/src/server.js",
+    "client": "node client/bin/uxi-sensor",
+    "client:simulate": "node client/bin/uxi-sensor --simulate",
+    "client:agent": "node client/bin/uxi-sensor --mode=agent",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down"
+  },
+  "keywords": [
+    "uxi",
+    "synthetic-testing",
+    "wifi-monitoring",
+    "aruba-uxi",
+    "voip-mos",
+    "aiops",
+    "packet-capture"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.10",
+    "cors": "^2.8.5",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "pg": "^8.17.2"
+  }
+}
