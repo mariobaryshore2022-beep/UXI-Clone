@@ -14,14 +14,19 @@ let currentTileType = 'dark';
 
 const TILE_PROVIDERS = {
   dark: {
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    subdomains: 'abcd',
+    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    className: 'dark-basemap',
     maxZoom: 19
+  },
+  esriDark: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+    maxZoom: 16
   },
   osm: {
     url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; OpenStreetMap contributors',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19
   },
   satellite: {
@@ -551,7 +556,7 @@ function recenterFleetMap() {
 function toggleMapTileLayer() {
   if (!fleetMapInstance) return;
 
-  const types = ['dark', 'osm', 'satellite'];
+  const types = ['dark', 'esriDark', 'osm', 'satellite'];
   const nextIdx = (types.indexOf(currentTileType) + 1) % types.length;
   currentTileType = types[nextIdx];
 
@@ -562,7 +567,12 @@ function toggleMapTileLayer() {
 
   const btn = document.getElementById('btn-map-tile-toggle');
   if (btn) {
-    const labels = { dark: 'Dark Map', osm: 'Street Map', satellite: 'Satellite' };
+    const labels = {
+      dark: 'Dark Cyber',
+      esriDark: 'Dark Canvas',
+      osm: 'Street Map',
+      satellite: 'Satellite'
+    };
     btn.innerHTML = `
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
       ${labels[currentTileType]}

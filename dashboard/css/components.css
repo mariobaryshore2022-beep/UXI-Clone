@@ -1682,6 +1682,11 @@
   background: #070d16;
 }
 
+/* High-contrast cyber dark basemap filter without requiring any 3rd-party API key */
+.dark-basemap {
+  filter: brightness(0.65) invert(1) contrast(2.2) hue-rotate(200deg) saturate(0.25) brightness(0.85);
+}
+
 .map-floating-toolbar {
   position: absolute;
   top: 16px;
