@@ -4,7 +4,7 @@ const { dispatchWebhook } = require('./webhookDispatcher');
 /**
  * AIOps Incident Engine:
  * Groups active issues across networks, sensors, and services into high-level Incidents.
- * In UXI, Issues are Blue (isolated threshold breaches), Incidents are Red (correlated environmental impacts).
+ * In Pulse UX, Issues are Blue (isolated threshold breaches), Incidents are Red (correlated environmental impacts).
  */
 async function correlateIncidents() {
   try {

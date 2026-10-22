@@ -31,8 +31,8 @@ class Simulator {
           snr: 38,
           channel_utilization: 24 + Math.floor(Math.random() * 8),
           client_count: 16 + Math.floor(Math.random() * 5),
-          vendor_ap_name: 'HQ-AP555-Floor3-East',
-          vendor: 'Aruba',
+          vendor_ap_name: 'HQ-AP-Floor3-East',
+          vendor: 'Enterprise-AP',
           security: '802.1x-enterprise',
           is_connected: true
         }
@@ -87,7 +87,7 @@ class Simulator {
   }
 
   // 5. DNS Resolution
-  async resolveDns(resolver, domain = 'arubanetworks.com') {
+  async resolveDns(resolver, domain = 'pulseux.internal') {
     await this.sleep(100);
     if (this.injectFault === 'dns_failure' && resolver === '10.10.1.10') {
       return {

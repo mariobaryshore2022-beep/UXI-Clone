@@ -30,13 +30,13 @@ app.use((req, res, next) => {
 
 async function startServer() {
   try {
-    console.log('--- HPE Aruba UXI Clone Server Starting ---');
+    console.log('--- Pulse UX Hub Server Starting ---');
     await initDb();
     await seedData();
 
     app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server listening on http://0.0.0.0:${PORT}`);
-      console.log(`UXI Dashboard live at http://localhost:${PORT}`);
+      console.log(`Pulse UX Hub listening on http://0.0.0.0:${PORT}`);
+      console.log(`Pulse UX Hub Dashboard live at http://localhost:${PORT}`);
       console.log(`Realtime SSE endpoint: http://localhost:${PORT}/api/events`);
     });
   } catch (err) {

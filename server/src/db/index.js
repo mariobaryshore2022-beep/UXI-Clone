@@ -23,7 +23,7 @@ async function getDb() {
         port: parseInt(process.env.PGPORT || '5432', 10),
         user: process.env.PGUSER || 'postgres',
         password: process.env.PGPASSWORD || 'postgres',
-        database: process.env.PGDATABASE || 'uxi_db',
+        database: process.env.PGDATABASE || 'pulse_db',
         connectionTimeoutMillis: 3000,
       });
 

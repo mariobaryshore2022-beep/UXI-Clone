@@ -1,5 +1,5 @@
 /* ==========================================================================
-   UXI Sensor Clone - Specialized UI Components
+   Pulse UX Hub - Specialized UI Components
    Donut Health Score, RF Spectrum, Terminal Emulator, Cycle Stepper, Incidents
    ========================================================================== */
 
@@ -201,7 +201,8 @@
   height: 10px;
   border-radius: 2px;
 }
-.chip-aruba { background: #ff8300; }
+.chip-pulse { background: #00f2fe; }
+.chip-aruba { background: #00f2fe; }
 .chip-cisco { background: #00bceb; }
 .chip-mist { background: #00c389; }
 .chip-extreme { background: #7c5295; }
@@ -854,9 +855,9 @@
 }
 
 /* ==========================================================================
-   8. Authentic HPE Aruba UXI "Simple View" (4 Pillars Experience Dashboard)
+   8. Authentic Pulse UX "Simple View" (4 Pillars Experience Dashboard)
    ========================================================================== */
-.aruba-simple-dashboard {
+.pulse-simple-dashboard, .aruba-simple-dashboard {
   background: #1c1e22;
   border-radius: var(--radius-lg);
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -869,7 +870,7 @@
   margin-bottom: 2rem;
 }
 
-.aruba-pillars-grid {
+.pulse-pillars-grid, .aruba-pillars-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 3rem;
@@ -878,7 +879,7 @@
   margin: 1rem auto 3rem auto;
 }
 
-.aruba-pillar-col {
+.pulse-pillar-col, .aruba-pillar-col {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -929,7 +930,7 @@
   position: absolute;
   width: 26px;
   height: 26px;
-  background: #f77f00;
+  background: #00a8e8;
   color: #ffffff;
   border-radius: 50%;
   display: flex;
@@ -1016,8 +1017,8 @@
   margin-left: 0.25rem;
 }
 
-/* Aruba Simple Footer */
-.aruba-simple-footer {
+/* Pulse UX Simple Footer */
+.pulse-simple-footer, .aruba-simple-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1031,21 +1032,29 @@
 .footer-left {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.75rem;
 }
 
-.aruba-logo-sub {
-  font-size: 1.35rem;
+.pulse-footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pulse-logo-sub {
+  font-size: 1.2rem;
   font-weight: 800;
   color: #ffffff;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
 }
 
 .footer-subtext {
-  font-size: 0.65rem;
-  line-height: 1.15;
+  font-size: 0.6rem;
+  line-height: 1.2;
   color: #94a3b8;
-  font-weight: 500;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .footer-center {
@@ -1062,12 +1071,12 @@
 .help-bubble-icon {
   width: 36px;
   height: 36px;
-  background: #65c18c;
+  background: #00a8e8;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 14px rgba(101, 193, 140, 0.4);
+  box-shadow: 0 4px 14px rgba(0, 168, 232, 0.4);
   cursor: pointer;
   transition: transform 0.2s ease;
 }
@@ -1076,14 +1085,14 @@
   transform: scale(1.1);
 }
 
-/* Aruba View Mode Switcher Header Icons */
-.aruba-view-mode-group {
+/* Pulse UX View Mode Switcher Header Icons */
+.pulse-view-mode-group, .aruba-view-mode-group {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.aruba-view-btn {
+.pulse-view-btn, .aruba-view-btn {
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -1097,27 +1106,108 @@
   transition: all 0.2s ease;
 }
 
-.aruba-view-btn:hover {
+.pulse-view-btn:hover, .aruba-view-btn:hover {
   color: #ffffff;
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.3);
 }
 
-.aruba-view-btn.active {
+.pulse-view-btn.active, .aruba-view-btn.active {
   color: #ffffff;
-  border-color: #65c18c;
-  background: rgba(101, 193, 140, 0.15);
-  box-shadow: 0 0 10px rgba(101, 193, 140, 0.3);
+  border-color: #00a8e8;
+  background: rgba(0, 168, 232, 0.15);
+  box-shadow: 0 0 10px rgba(0, 168, 232, 0.3);
 }
 
-.aruba-brand-logo {
+/* Official Pulse UX Brand Lockup */
+.pulse-brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.pulse-badge-svg {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+}
+
+.pulse-brand-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.pulse-title-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  line-height: 1.1;
+}
+
+.brand-pulse {
   font-family: var(--font-sans);
-  font-size: 1.5rem;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+}
+
+.brand-ux {
+  font-family: var(--font-sans);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #00a8e8;
+  letter-spacing: -0.02em;
+}
+
+.brand-hub {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-left: 0.15rem;
+}
+
+.brand-tagline {
+  font-family: var(--font-sans);
+  font-size: 0.48rem;
   font-weight: 700;
-  letter-spacing: -0.03em;
-  color: #ff8300;
-  text-shadow: 0 0 15px rgba(255, 131, 0, 0.25);
+  letter-spacing: 0.14em;
+  color: #64748b;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* Co-brand lockup with Bayshore HealthCare */
+.pulse-cobrand-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  padding-left: 0.85rem;
   margin-left: 0.5rem;
+}
+
+.cobrand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.cobrand-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  line-height: 1.2;
+}
+
+.cobrand-sub {
+  font-size: 0.58rem;
+  color: #64748b;
+  font-weight: 500;
 }
 
 .group-dropdown-badge {

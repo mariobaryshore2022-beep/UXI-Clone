@@ -76,7 +76,7 @@ function setupTriageActions() {
     exportBtn.addEventListener('click', () => {
       if (!currentTriageData) return alert('No triage report selected');
       const text = `
-=== UXI AUTOMATED TRIAGE REPORT ===
+=== PULSE UX AUTOMATED TRIAGE REPORT ===
 Session ID: ${currentTriageData.id}
 Sensor: ${currentTriageData.sensor_id}
 Failure Step: ${currentTriageData.failure_step}
@@ -93,7 +93,7 @@ ${currentTriageData.command_output}
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `uxi_triage_${currentTriageData.id}.txt`;
+      a.download = `pulse_ux_triage_${currentTriageData.id}.txt`;
       a.click();
     });
   }

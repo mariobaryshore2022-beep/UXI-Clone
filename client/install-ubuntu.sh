@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# UXI Sensor Clone - Ubuntu 24.04 / 26.04 LTS Installation Script
+# Pulse UX Sensor - Ubuntu / Debian / Kali Linux Installation Script
 # Configures native tools, unmanages dedicated test interface, installs systemd
 # ==============================================================================
 
@@ -12,7 +12,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 echo "================================================================="
-echo "   HPE Aruba UXI Sensor Clone - Ubuntu LTS Setup"
+echo "   Pulse UX Sensor - Digital Experience Monitoring Agent Setup"
 echo "================================================================="
 
 # 1. Install Required Linux Networking Tools
@@ -47,22 +47,22 @@ echo "[3/4] Configuring Netplan/NetworkManager to leave '${TEST_IFACE}' unmanage
 
 NM_CONF_DIR="/etc/NetworkManager/conf.d"
 if [ -d "$NM_CONF_DIR" ]; then
-  cat <<EOF > "$NM_CONF_DIR/99-uxi-unmanaged.conf"
+  cat <<EOF > "$NM_CONF_DIR/99-pulse-sensor-unmanaged.conf"
 [keyfile]
 unmanaged-devices=interface-name:${TEST_IFACE}
 EOF
   systemctl reload NetworkManager || true
-  echo "      Configured $NM_CONF_DIR/99-uxi-unmanaged.conf"
+  echo "      Configured $NM_CONF_DIR/99-pulse-sensor-unmanaged.conf"
 fi
 
 # 4. Install Systemd Service
 INSTALL_DIR=$(pwd)
 SERVER_URL="${2:-http://localhost:3000}"
 
-echo "[4/4] Creating systemd service: /etc/systemd/system/uxi-sensor.service..."
-cat <<EOF > /etc/systemd/system/uxi-sensor.service
+echo "[4/4] Creating systemd service: /etc/systemd/system/pulse-sensor.service..."
+cat <<EOF > /etc/systemd/system/pulse-sensor.service
 [Unit]
-Description=UXI Synthetic Network Sensor Daemon
+Description=Pulse UX Sensor Synthetic Network Telemetry Daemon
 After=network.target
 
 [Service]
@@ -72,7 +72,7 @@ WorkingDirectory=${INSTALL_DIR}
 Environment="SERVER_URL=${SERVER_URL}"
 Environment="TEST_INTERFACE=${TEST_IFACE}"
 Environment="SENSOR_MODE=sensor"
-ExecStart=$(which node) ${INSTALL_DIR}/client/bin/uxi-sensor
+ExecStart=$(which node) ${INSTALL_DIR}/client/bin/pulse-sensor
 Restart=always
 RestartSec=10
 
@@ -80,15 +80,18 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
+# Provide legacy alias symlink for compatibility
+ln -sf /etc/systemd/system/pulse-sensor.service /etc/systemd/system/uxi-sensor.service
+
 systemctl daemon-reload
 echo ""
 echo "================================================================="
-echo "[+] UXI Sensor successfully installed!"
+echo "[+] Pulse UX Sensor successfully installed!"
 echo "    Dedicated Test Interface : ${TEST_IFACE}"
-echo "    Dashboard Server Target  : ${SERVER_URL}"
+echo "    Pulse UX Hub Target      : ${SERVER_URL}"
 echo ""
-echo "To start the sensor service:"
-echo "  sudo systemctl start uxi-sensor"
-echo "  sudo systemctl enable uxi-sensor"
-echo "  sudo journalctl -u uxi-sensor -f"
+echo "To start the Pulse UX Sensor service:"
+echo "  sudo systemctl start pulse-sensor"
+echo "  sudo systemctl enable pulse-sensor"
+echo "  sudo journalctl -u pulse-sensor -f"
 echo "================================================================="

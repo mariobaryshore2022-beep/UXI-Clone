@@ -1,28 +1,32 @@
 {
-  "name": "uxi-sensor-clone",
+  "name": "pulse-ux-hub",
   "version": "1.0.0",
-  "description": "Self-hosted synthetic network sensor and user experience insight platform inspired by HPE Aruba Networking UXI",
+  "description": "Pulse UX Hub - Digital Experience Monitoring & Synthetic Network Telemetry platform with Pulse UX Sensor fleet",
   "main": "server/src/server.js",
   "bin": {
-    "uxi-sensor": "client/bin/uxi-sensor"
+    "pulse-sensor": "client/bin/pulse-sensor",
+    "uxi-sensor": "client/bin/pulse-sensor"
   },
   "scripts": {
     "start": "node server/src/server.js",
+    "hub": "node server/src/server.js",
     "server": "node server/src/server.js",
-    "client": "node client/bin/uxi-sensor",
-    "client:simulate": "node client/bin/uxi-sensor --simulate",
-    "client:agent": "node client/bin/uxi-sensor --mode=agent",
+    "sensor": "node client/bin/pulse-sensor",
+    "sensor:simulate": "node client/bin/pulse-sensor --simulate",
+    "sensor:agent": "node client/bin/pulse-sensor --mode=agent",
+    "client": "node client/bin/pulse-sensor",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down"
   },
   "keywords": [
-    "uxi",
+    "pulse-ux",
+    "pulse-ux-hub",
+    "pulse-ux-sensor",
+    "digital-experience-monitoring",
     "synthetic-testing",
     "wifi-monitoring",
-    "aruba-uxi",
     "voip-mos",
-    "aiops",
-    "packet-capture"
+    "network-telemetry"
   ],
   "author": "",
   "license": "ISC",

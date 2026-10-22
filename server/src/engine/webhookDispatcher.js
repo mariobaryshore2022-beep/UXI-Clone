@@ -18,7 +18,7 @@ async function dispatchWebhook(eventType, data) {
   }
 
   const payload = JSON.stringify({
-    source: 'UXI-Sensor-Clone',
+    source: 'Pulse-UX-Hub',
     event: eventType,
     timestamp: new Date().toISOString(),
     data

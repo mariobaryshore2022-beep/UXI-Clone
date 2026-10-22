@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HPE Aruba UXI Clone - Synthetic Network & Experience Insight</title>
-  <meta name="description" content="Self-hosted synthetic network sensor and user experience insight platform replicating HPE Aruba Networking UXI. Continuous end-user synthetic testing, automated triage, and AIOps incident grouping.">
+  <title>Pulse UX - Digital Experience Monitoring & Synthetic Network Telemetry</title>
+  <meta name="description" content="Pulse UX - Enterprise Digital Experience Monitoring and Synthetic Network Sensor Platform. Continuous end-user experience insight, automated triage, and proactive SLA observability.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -15,15 +15,15 @@
   <!-- Global App Header -->
   <header class="app-header" id="app-header">
     <div class="header-left">
-      <!-- Aruba View Switcher Icons & Group Dropdown -->
-      <div class="aruba-view-mode-group">
-        <button class="aruba-view-btn active" data-tab="tab-simple" id="btn-icon-simple" title="Aruba Simple Experience View">
+      <!-- Pulse UX View Switcher Icons & Group Dropdown -->
+      <div class="pulse-view-mode-group">
+        <button class="pulse-view-btn active" data-tab="tab-simple" id="btn-icon-simple" title="Pulse UX Experience View">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><circle cx="9" cy="9" r="1" fill="currentColor"/><circle cx="15" cy="9" r="1" fill="currentColor"/></svg>
         </button>
-        <button class="aruba-view-btn" data-tab="tab-wifi" id="btn-icon-wifi" title="Wi-Fi Environment Map">
+        <button class="pulse-view-btn" data-tab="tab-wifi" id="btn-icon-wifi" title="Wi-Fi Environment Map">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
         </button>
-        <button class="aruba-view-btn" data-tab="tab-overview" id="btn-icon-overview" title="Operations Dashboard Grid">
+        <button class="pulse-view-btn" data-tab="tab-overview" id="btn-icon-overview" title="Operations Dashboard Grid">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
         </button>
         <div class="group-dropdown-badge" title="Filter by sensor group">
@@ -31,8 +31,30 @@
         </div>
       </div>
 
-      <div class="brand-container">
-        <span class="aruba-brand-logo">aruba</span>
+      <!-- Official Pulse UX Brand Lockup -->
+      <div class="pulse-brand-lockup" id="brand-header-home" title="Pulse UX Hub - Digital Experience Monitoring">
+        <svg class="pulse-badge-svg" viewBox="0 0 100 100">
+          <rect width="100" height="100" rx="22" fill="#0d284a" />
+          <path d="M 12 52 L 30 52 L 36 38 L 45 74 L 54 28 L 62 56 L 68 52" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M 68 38 A 18 18 0 0 1 78 56" fill="none" stroke="#00b4d8" stroke-width="6.5" stroke-linecap="round" />
+          <path d="M 72 26 A 30 30 0 0 1 89 56" fill="none" stroke="#00b4d8" stroke-width="6.5" stroke-linecap="round" />
+        </svg>
+        <div class="pulse-brand-text">
+          <div class="pulse-title-wrap">
+            <span class="brand-pulse">Pulse</span>
+            <span class="brand-ux">UX</span>
+            <span class="brand-hub">Hub</span>
+          </div>
+          <span class="brand-tagline">DIGITAL EXPERIENCE MONITORING</span>
+        </div>
+      </div>
+
+      <!-- Co-brand Lockup with Bayshore HealthCare -->
+      <div class="pulse-cobrand-wrap">
+        <div class="cobrand-text">
+          <span class="cobrand-name">Bayshore HealthCare</span>
+          <span class="cobrand-sub">IT Infrastructure & DevSecOps</span>
+        </div>
       </div>
 
       <nav class="nav-tabs" id="nav-tabs">
@@ -75,15 +97,15 @@
   <main class="main-viewport" id="main-viewport">
     
     <!-- ================================================================= -->
-    <!-- TAB 0: AUTHENTIC ARUBA UXI SIMPLE VIEW -->
+    <!-- TAB 0: PULSE UX SIMPLE VIEW -->
     <!-- ================================================================= -->
     <section class="tab-pane active" id="tab-simple">
-      <div class="aruba-simple-dashboard">
+      <div class="pulse-simple-dashboard">
         <!-- 4 Core Pillars Grid -->
-        <div class="aruba-pillars-grid">
+        <div class="pulse-pillars-grid">
           
           <!-- 1. Experience Column -->
-          <div class="aruba-pillar-col" id="pillar-col-experience">
+          <div class="pulse-pillar-col" id="pillar-col-experience">
             <div class="pillar-avatar-wrapper">
               <div class="pillar-avatar-circle circle-bad" id="simple-circle-experience" title="End-User Experience Perception">
                 <svg id="simple-face-svg" class="pillar-svg-icon" viewBox="0 0 100 100">
@@ -102,7 +124,7 @@
           </div>
 
           <!-- 2. Services Column -->
-          <div class="aruba-pillar-col" id="pillar-col-services">
+          <div class="pulse-pillar-col" id="pillar-col-services">
             <div class="pillar-avatar-wrapper">
               <div class="pillar-avatar-circle circle-bad" id="simple-circle-services" title="Core Network Infrastructure Services">
                 <svg class="pillar-svg-icon" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
@@ -122,7 +144,7 @@
           </div>
 
           <!-- 3. Internal Column -->
-          <div class="aruba-pillar-col" id="pillar-col-internal">
+          <div class="pulse-pillar-col" id="pillar-col-internal">
             <div class="pillar-avatar-wrapper">
               <div class="pillar-avatar-circle circle-bad" id="simple-circle-internal" title="Internal Enterprise Applications & Targets">
                 <svg class="pillar-svg-icon" viewBox="0 0 100 100" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
@@ -138,7 +160,7 @@
           </div>
 
           <!-- 4. External Column -->
-          <div class="aruba-pillar-col" id="pillar-col-external">
+          <div class="pulse-pillar-col" id="pillar-col-external">
             <div class="pillar-avatar-wrapper">
               <div class="pillar-avatar-circle circle-good" id="simple-circle-external" title="External SaaS & Cloud Services">
                 <svg class="pillar-svg-icon" viewBox="0 0 100 100" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
@@ -156,17 +178,25 @@
 
         </div>
 
-        <!-- Authentic Aruba UXI Simple Footer -->
-        <div class="aruba-simple-footer">
+        <!-- Authentic Pulse UX Simple Footer -->
+        <div class="pulse-simple-footer">
           <div class="footer-left">
-            <span class="aruba-logo-sub">UXI</span>
-            <span class="footer-subtext">User Experience<br>Insight</span>
+            <svg class="pulse-badge-svg" style="width: 28px; height: 28px;" viewBox="0 0 100 100">
+              <rect width="100" height="100" rx="22" fill="#0d284a" />
+              <path d="M 12 52 L 30 52 L 36 38 L 45 74 L 54 28 L 62 56 L 68 52" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M 68 38 A 18 18 0 0 1 78 56" fill="none" stroke="#00b4d8" stroke-width="6.5" stroke-linecap="round" />
+              <path d="M 72 26 A 30 30 0 0 1 89 56" fill="none" stroke="#00b4d8" stroke-width="6.5" stroke-linecap="round" />
+            </svg>
+            <div class="pulse-brand-text">
+              <span class="pulse-logo-sub"><span style="color:#ffffff;">Pulse</span> <span style="color:#00a8e8;">UX</span></span>
+              <span class="footer-subtext">DIGITAL EXPERIENCE MONITORING</span>
+            </div>
           </div>
           <div class="footer-center" id="simple-footer-fleet-meta">
-            Aruba SEEL • 1 Sensor (sensor-kali-arm64)
+            Pulse UX Fleet • 1 Sensor (sensor-kali-arm64)
           </div>
           <div class="footer-right">
-            <div class="help-bubble-icon" title="Aruba AI-Ops & Support Assistant">
+            <div class="help-bubble-icon" title="Pulse UX AI-Ops Assistant">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="white">
                 <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 9h-4v-2h4v2zm-2-5c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm4 11H8v-2h8v2z"/>
               </svg>
@@ -196,7 +226,7 @@
           </div>
         </div>
 
-        <!-- Incidents Card (UXI Red) -->
+        <!-- Incidents Card (Pulse Red) -->
         <div class="card glass-card stat-card border-red" id="card-incidents-summary">
           <div class="card-header">
             <span class="card-title">ACTIVE INCIDENTS (AI-OPS)</span>
@@ -211,7 +241,7 @@
           </div>
         </div>
 
-        <!-- Issues Card (UXI Blue) -->
+        <!-- Issues Card (Pulse Blue) -->
         <div class="card glass-card stat-card border-blue" id="card-issues-summary">
           <div class="card-header">
             <span class="card-title">THRESHOLD ISSUES</span>
@@ -357,7 +387,7 @@
         <div class="card-header">
           <span class="card-title">MULTI-BAND RF SPECTRUM (2.4 GHz / 5 GHz / 6 GHz)</span>
           <div class="spectrum-legend">
-            <span class="legend-chip"><span class="chip-color chip-aruba"></span> Aruba</span>
+            <span class="legend-chip"><span class="chip-color chip-pulse"></span> Pulse AP</span>
             <span class="legend-chip"><span class="chip-color chip-cisco"></span> Cisco</span>
             <span class="legend-chip"><span class="chip-color chip-mist"></span> Mist</span>
             <span class="legend-chip"><span class="chip-color chip-extreme"></span> Extreme</span>
@@ -411,7 +441,7 @@
       <!-- Interactive 10-Step Cycle Demonstration -->
       <div class="card glass-card" id="card-cycle-stepper">
         <div class="card-header">
-          <span class="card-title">UXI 10-STEP NETWORK TEST CYCLE (IN ORDER)</span>
+          <span class="card-title">PULSE UX 10-STEP CONTINUOUS TEST CYCLE</span>
           <span class="badge badge-cyan-outline">ROUND-ROBIN PIPELINE</span>
         </div>
         <div class="cycle-stepper" id="cycle-stepper-visualizer">
@@ -502,7 +532,7 @@
             <span id="hist-sensor-meta" style="color: var(--text-secondary); margin-left: 0.65rem;">Linux VM • IP: 192.168.64.4 • Mode: DEDICATED</span>
           </div>
           <div>
-            <span class="status-indicator status-green" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--uxi-emerald); box-shadow: 0 0 8px var(--uxi-emerald); margin-right: 6px;"></span>
+            <span class="status-indicator status-green" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--pulse-emerald); box-shadow: 0 0 8px var(--pulse-emerald); margin-right: 6px;"></span>
             <span id="hist-sensor-stage" style="color: var(--text-main); font-family: var(--font-mono);">Active Network: Wired-Ethernet (eth0) (IDLE)</span>
           </div>
         </div>

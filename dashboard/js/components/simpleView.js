@@ -1,5 +1,5 @@
 /**
- * HPE Aruba UXI "Simple View" - Authentic 4-Pillar Experience Dashboard
+ * Pulse UX "Simple View" - Authentic 4-Pillar Experience Dashboard
  * Pillars: Experience (Smiley Face), Services (Layers), Internal (Star), External (Cloud)
  */
 
@@ -81,11 +81,11 @@ function renderSimpleViewData(data) {
   if (footerMeta) {
     const sensorCount = sensors.length || 1;
     const sensorName = sensors[0]?.name || 'Kali-Linux-Sensor';
-    footerMeta.innerText = `Aruba SEEL • ${sensorCount} Sensor (${sensorName})`;
+    footerMeta.innerText = `Pulse UX Fleet • ${sensorCount} Sensor (${sensorName}) • Bayshore HealthCare`;
   }
 }
 
-// 1. Experience Pillar (The Iconic UXI Smiley / Sad Face)
+// 1. Experience Pillar (The Iconic Pulse UX Smiley / Sad Face)
 function renderExperiencePillar(state, overview, incidents, issues) {
   const circle = document.getElementById('simple-circle-experience');
   const svg = document.getElementById('simple-face-svg');
@@ -107,7 +107,7 @@ function renderExperiencePillar(state, overview, incidents, issues) {
       ${renderPillItem('Competitive TME T...', 'red', 'bolt')}
       ${renderPillItem('Eric Lebel', 'red', 'bolt')}
       ${renderPillItem('Winnersh', 'red', 'bolt')}
-      ${renderPillItem('Aruba RLA', 'green')}
+      ${renderPillItem('Bayshore HealthCare', 'green')}
     `;
   } else {
     // Happy Smiling Face
@@ -122,7 +122,7 @@ function renderExperiencePillar(state, overview, incidents, issues) {
       ${renderPillItem('Competitive TME T...', 'green', 'bolt')}
       ${renderPillItem('Eric Lebel', 'green', 'bolt')}
       ${renderPillItem('Winnersh', 'green', 'bolt')}
-      ${renderPillItem('Aruba RLA', 'green')}
+      ${renderPillItem('Bayshore HealthCare', 'green')}
     `;
   }
 }
@@ -156,14 +156,14 @@ function renderInternalPillar(state, tests, hasDhcpFailure) {
   list.innerHTML = `
     ${renderPillItem('CRM Solution', isBad ? 'red' : 'green', isBad ? 'wifi' : '')}
     ${renderPillItem('File Server', isBad ? 'red' : 'green', isBad ? 'wifi' : '')}
-    ${renderPillItem('AirWave 10', 'green')}
-    ${renderPillItem('CPPM-Central-SEE...', 'green')}
+    ${renderPillItem('Pulse Core API', 'green')}
+    ${renderPillItem('Bayshore EHR Portal', 'green')}
     ${renderPillItem('ESXi Server', 'green')}
     ${renderPillItem('Lab Webserver', 'green')}
     ${renderPillItem('iPerf2-FACS', 'green')}
-    ${renderPillItem('Airwave', 'gray')}
-    ${renderPillItem('Clearpass', 'gray')}
-    ${renderPillItem('EricLebel-Camera', 'gray')}
+    ${renderPillItem('Pulse Gateway', 'gray')}
+    ${renderPillItem('Identity Server', 'gray')}
+    ${renderPillItem('Clinic-Camera', 'gray')}
   `;
 }
 
@@ -189,7 +189,7 @@ function renderExternalPillar(state, tests, hasVoipIssue) {
   `;
 }
 
-// Helper to generate the exact pill item markup from Aruba UXI
+// Helper to generate the exact pill item markup for Pulse UX
 function renderPillItem(name, status, iconType = '') {
   let iconHtml = '';
   if (iconType === 'wifi') {

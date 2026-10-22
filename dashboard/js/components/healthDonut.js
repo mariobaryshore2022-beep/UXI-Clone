@@ -10,16 +10,16 @@ function renderExperienceDonut(containerId, score = 94) {
   const clampedScore = Math.max(0, Math.min(100, score));
   const offset = circumference - (clampedScore / 100) * circumference;
 
-  let color = 'var(--uxi-emerald)';
+  let color = 'var(--pulse-emerald)';
   let glow = 'rgba(16, 185, 129, 0.5)';
   if (clampedScore < 60) {
-    color = 'var(--uxi-red)';
+    color = 'var(--pulse-red)';
     glow = 'rgba(244, 63, 94, 0.5)';
   } else if (clampedScore < 75) {
-    color = 'var(--uxi-amber)';
+    color = 'var(--pulse-amber)';
     glow = 'rgba(245, 158, 11, 0.5)';
   } else if (clampedScore < 90) {
-    color = 'var(--uxi-cyan)';
+    color = 'var(--pulse-cyan)';
     glow = 'rgba(0, 242, 254, 0.5)';
   }
 

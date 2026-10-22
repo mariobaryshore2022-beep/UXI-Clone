@@ -4,7 +4,7 @@ const StoreAndForward = require('./storeAndForward');
 const LinuxRunner = require('./platform/linuxRunner');
 const Simulator = require('./platform/simulator');
 
-class UxiClient {
+class PulseSensorClient {
   constructor(options = {}) {
     this.sensorId = options.sensorId || config.serverId;
     this.sensorName = options.sensorName || config.sensorName;
@@ -20,7 +20,7 @@ class UxiClient {
     this.linuxRunner = new LinuxRunner(config.testInterface, config.managementInterface);
     this.simulator = new Simulator();
 
-    console.log(`[UXI Client] Initialized. ID: ${this.sensorId}, Mode: ${this.mode.toUpperCase()}, Simulate: ${this.simulate}`);
+    console.log(`[Pulse UX Sensor] Initialized. ID: ${this.sensorId}, Mode: ${this.mode.toUpperCase()}, Simulate: ${this.simulate}`);
   }
 
   async sleep(ms) {
@@ -28,7 +28,7 @@ class UxiClient {
   }
 
   async register() {
-    console.log(`[UXI Client] Registering sensor with dashboard server at ${this.serverUrl}...`);
+    console.log(`[Pulse UX Sensor] Registering sensor with Pulse UX Hub at ${this.serverUrl}...`);
     const payload = {
       id: this.sensorId,
       name: this.sensorName,
@@ -36,7 +36,7 @@ class UxiClient {
       ip_address: '10.10.30.85',
       mac_address: 'e4:5f:01:bc:39:10',
       hardware_model: this.simulate ? 'Intel N100 / AX210 (Simulated)' : 'Intel N100 / AX210 (Ubuntu Linux)',
-      firmware_version: '2.4.0-uxi',
+      firmware_version: '2.4.0-pulse',
       hardware_info: {
         platform: os.platform(),
         arch: os.arch(),
@@ -279,7 +279,7 @@ class UxiClient {
 
   stop() {
     this.isRunning = false;
-    console.log('[UXI Client] Stopping client service.');
+    console.log('[Pulse UX Sensor] Stopping sensor service.');
   }
 }
 
@@ -290,16 +290,16 @@ if (require.main === module) {
   const simArg = args.includes('--simulate');
   const serverArg = args.find(a => a.startsWith('--server='));
 
-  const client = new UxiClient({
+  const client = new PulseSensorClient({
     mode: modeArg ? modeArg.split('=')[1] : undefined,
     simulate: simArg || undefined,
     serverUrl: serverArg ? serverArg.split('=')[1] : undefined
   });
 
   client.start().catch(err => {
-    console.error('Fatal client error:', err);
+    console.error('Fatal sensor error:', err);
     process.exit(1);
   });
 }
 
-module.exports = UxiClient;
+module.exports = PulseSensorClient;

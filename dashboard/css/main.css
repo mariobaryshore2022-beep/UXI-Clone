@@ -1,5 +1,5 @@
 /* ==========================================================================
-   UXI Sensor Clone - Core Design System & Tokens
+   Pulse UX Hub - Core Design System & Tokens
    Dark Mode, Glassmorphism, and Dynamic Enterprise Telemetry Aesthetics
    ========================================================================== */
 
@@ -8,22 +8,31 @@
   --font-mono: 'JetBrains Mono', monospace;
 
   /* Color Palette */
-  --bg-dark: #090d16;
-  --bg-surface: #0f172a;
-  --bg-card: rgba(17, 24, 39, 0.75);
-  --bg-card-hover: rgba(26, 36, 56, 0.85);
-  --bg-glass: rgba(15, 23, 42, 0.65);
+  --bg-dark: #070c14;
+  --bg-surface: #0a1320;
+  --bg-card: rgba(10, 22, 38, 0.78);
+  --bg-card-hover: rgba(16, 33, 56, 0.88);
+  --bg-glass: rgba(9, 23, 41, 0.7);
 
   --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-bright: rgba(255, 255, 255, 0.18);
+  --border-bright: rgba(56, 189, 248, 0.25);
 
-  /* Primary UXI Semantic Accents */
-  --uxi-cyan: #00f2fe;
-  --uxi-blue: #38bdf8;
-  --uxi-red: #f43f5e;
-  --uxi-emerald: #10b981;
-  --uxi-amber: #f59e0b;
-  --uxi-purple: #a855f7;
+  /* Pulse UX Brand & Semantic Accents */
+  --pulse-navy: #093254;
+  --pulse-cyan: #00f2fe;
+  --pulse-blue: #38bdf8;
+  --pulse-red: #f43f5e;
+  --pulse-emerald: #10b981;
+  --pulse-amber: #f59e0b;
+  --pulse-purple: #a855f7;
+
+  /* Backward Compatibility Aliases */
+  --uxi-cyan: var(--pulse-cyan);
+  --uxi-blue: var(--pulse-blue);
+  --uxi-red: var(--pulse-red);
+  --uxi-emerald: var(--pulse-emerald);
+  --uxi-amber: var(--pulse-amber);
+  --uxi-purple: var(--pulse-purple);
 
   /* Text Colors */
   --text-main: #f8fafc;

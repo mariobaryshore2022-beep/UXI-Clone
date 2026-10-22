@@ -20,7 +20,7 @@ router.get('/overview', async (req, res) => {
       WHERE metrics->>'mos' IS NOT NULL AND timestamp >= NOW() - INTERVAL \'1 hour\'
     `);
 
-    // Calculate UXI Global Experience Score (0 - 100)
+    // Calculate Pulse UX Global Experience Score (0 - 100)
     const activeIncidents = parseInt(incidentsRes.rows[0].count, 10);
     const activeIssues = parseInt(issuesRes.rows[0].count, 10);
     const avgMos = parseFloat(mosRes.rows[0].avg_mos) || 4.25;
@@ -186,7 +186,7 @@ router.post('/sensors/register', async (req, res) => {
       ip_address || '127.0.0.1',
       mac_address || '00:00:00:00:00:00',
       hardware_model || 'Ubuntu Linux Machine',
-      firmware_version || '2.4.0-uxi',
+      firmware_version || '2.4.0-pulse',
       JSON.stringify(hardware_info || {})
     ]);
 
@@ -283,7 +283,7 @@ router.post('/telemetry/wifi', async (req, res) => {
         ap.channel_utilization || 20,
         ap.client_count || 10,
         ap.vendor_ap_name || null,
-        ap.vendor || 'Aruba',
+        ap.vendor || 'Enterprise',
         ap.security || 'wpa2-psk',
         Boolean(ap.is_connected)
       ]);

@@ -27,7 +27,7 @@ module.exports = {
   controlHosts: {
     primaryDns: '10.10.1.10',
     secondaryDns: '8.8.8.8',
-    dnsQueryTarget: 'arubanetworks.com',
+    dnsQueryTarget: 'pulseux.internal',
     gateway: '10.10.30.1',
     externalHttp: 'https://www.google.com/generate_204',
     teamsVoipTarget: 'worldaz.tr.teams.microsoft.com',

@@ -62,11 +62,12 @@ function renderWifiSpectrum(containerId, apList = []) {
       const rssi = ap.rssi || -70;
       const heightPct = Math.max(25, Math.min(95, Math.round(((rssi + 95) / 55) * 100)));
 
-      let vendorClass = 'chip-aruba';
-      let vendorColor = '#ff8300';
+      let vendorClass = 'chip-pulse';
+      let vendorColor = '#00f2fe';
       if (ap.vendor === 'Cisco') { vendorClass = 'chip-cisco'; vendorColor = '#00bceb'; }
       else if (ap.vendor === 'Mist') { vendorClass = 'chip-mist'; vendorColor = '#00c389'; }
       else if (ap.vendor === 'Extreme') { vendorClass = 'chip-extreme'; vendorColor = '#7c5295'; }
+      else if (ap.vendor === 'Enterprise' || ap.vendor === 'Pulse AP') { vendorClass = 'chip-pulse'; vendorColor = '#00f2fe'; }
 
       html += `
         <div class="rf-signal-peak" 

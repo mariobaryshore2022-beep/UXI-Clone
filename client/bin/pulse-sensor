@@ -1,0 +1,50 @@
+#!/usr/bin/env node
+
+const PulseClient = require('../src/client');
+
+const args = process.argv.slice(2);
+const help = args.includes('--help') || args.includes('-h');
+
+if (help) {
+  console.log(`
+Pulse UX Sensor - Digital Experience Monitoring & Synthetic Network Agent
+
+Usage:
+  pulse-sensor [options]
+
+Options:
+  --mode=sensor|agent    Set operational mode (default: sensor)
+  --server=URL           Pulse UX Hub server URL (default: http://localhost:3000)
+  --simulate             Force simulation mode (useful for macOS / non-root)
+  --interface=IFACE      Dedicated Wi-Fi test interface (default: wlan1)
+  --help, -h             Show this help message
+
+Examples:
+  pulse-sensor --mode=sensor
+  pulse-sensor --mode=agent --server=http://pulse-hub.internal:3000
+  pulse-sensor --simulate
+`);
+  process.exit(0);
+}
+
+const modeArg = args.find(a => a.startsWith('--mode='));
+const simArg = args.includes('--simulate');
+const serverArg = args.find(a => a.startsWith('--server='));
+const ifaceArg = args.find(a => a.startsWith('--interface='));
+
+const client = new PulseClient({
+  mode: modeArg ? modeArg.split('=')[1] : undefined,
+  simulate: simArg ? true : undefined,
+  serverUrl: serverArg ? serverArg.split('=')[1] : undefined
+});
+
+process.on('SIGINT', () => {
+  console.log('\nGracefully shutting down Pulse UX Sensor...');
+  client.stop();
+  process.exit(0);
+});
+
+client.start().catch(err => {
+  console.error('Pulse UX Sensor error:', err);
+  process.exit(1);
+});

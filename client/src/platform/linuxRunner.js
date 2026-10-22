@@ -47,7 +47,7 @@ class LinuxRunner {
           rssi: signalMatch ? Math.round(parseFloat(signalMatch[1])) : -70,
           channel,
           band,
-          vendor: block.includes('Aruba') ? 'Aruba' : (block.includes('Cisco') ? 'Cisco' : 'Generic'),
+          vendor: block.includes('Cisco') ? 'Cisco' : (block.includes('Ruckus') ? 'Ruckus' : 'Enterprise'),
           vendor_ap_name: `AP-${channel}`
         });
       }

@@ -22,11 +22,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }, 10000);
 });
 
-// 1. Navigation Tab Switching & Aruba View Buttons
+// 1. Navigation Tab Switching & Pulse UX View Buttons
 function initNavigation() {
   const tabs = document.querySelectorAll('.nav-tab');
   const panes = document.querySelectorAll('.tab-pane');
-  const viewBtns = document.querySelectorAll('.aruba-view-btn');
+  const viewBtns = document.querySelectorAll('.pulse-view-btn, .aruba-view-btn');
 
   function activateTab(targetId) {
     tabs.forEach(t => {
@@ -346,8 +346,8 @@ async function loadWifiEnvironment() {
             <td style="font-family: var(--font-mono); font-size: 0.75rem;">${ap.bssid}</td>
             <td>
               <span class="legend-chip">
-                <span class="chip-color chip-${ap.vendor?.toLowerCase() || 'aruba'}"></span>
-                ${ap.vendor_ap_name || ap.vendor || 'Aruba'}
+                <span class="chip-color chip-${ap.vendor?.toLowerCase() === 'aruba' ? 'pulse' : (ap.vendor?.toLowerCase() || 'pulse')}"></span>
+                ${ap.vendor_ap_name || (ap.vendor === 'Aruba' ? 'Pulse AP' : ap.vendor) || 'Pulse AP'}
               </span>
             </td>
             <td><span class="badge badge-cyan-outline">${ap.band}</span></td>
