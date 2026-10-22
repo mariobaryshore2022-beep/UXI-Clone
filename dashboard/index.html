@@ -101,6 +101,20 @@
     <!-- ================================================================= -->
     <section class="tab-pane active" id="tab-simple">
       <div class="pulse-simple-dashboard">
+        <!-- Simple View Header Bar with Config Button -->
+        <div class="simple-top-bar">
+          <div class="simple-view-heading">
+            <h2 class="simple-title">DIGITAL EXPERIENCE MONITORING</h2>
+            <span class="simple-subtitle">Autonomous 4-Pillar Synthetic Telemetry Pipeline</span>
+          </div>
+          <div class="simple-top-actions">
+            <button id="btn-open-simple-config" class="btn-config-simple" onclick="openSimpleConfigModal()" title="Configure Monitored Items across 4 Pillars">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              Configure Pillars
+            </button>
+          </div>
+        </div>
+
         <!-- 4 Core Pillars Grid -->
         <div class="pulse-pillars-grid">
           
@@ -786,6 +800,89 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeMetricsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Simple View 4-Pillar Configuration Modal -->
+  <div id="modal-simple-config" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog modal-dialog-lg">
+      <div class="modal-header">
+        <div>
+          <h3 id="modal-config-title">Configure Simple View (4 Pillars)</h3>
+          <span class="modal-subtext">Customize monitored networks, core infrastructure services, internal enterprise apps, and external SaaS targets</span>
+        </div>
+        <button class="btn-close" onclick="closeSimpleConfigModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Tabs for 4 Pillars -->
+        <div class="config-pillar-tabs">
+          <button class="config-tab-btn active" data-pillar="experience">🎯 1. Experience (Networks/Sites)</button>
+          <button class="config-tab-btn" data-pillar="services">⚙️ 2. Core Services</button>
+          <button class="config-tab-btn" data-pillar="internal">🏢 3. Internal Apps</button>
+          <button class="config-tab-btn" data-pillar="external">☁️ 4. External Cloud & SaaS</button>
+        </div>
+
+        <!-- Add Item Form -->
+        <div class="config-add-box">
+          <h4 class="config-section-title" id="config-form-title">Add Item to Experience Pillar</h4>
+          <form id="form-add-simple-item" class="config-form-grid">
+            <input type="hidden" id="config-input-pillar" value="experience">
+            <div class="form-group">
+              <label>Item Name</label>
+              <input type="text" id="config-input-name" class="config-input" placeholder="e.g. Bayshore EHR Portal" required>
+            </div>
+            <div class="form-group">
+              <label>Target / Destination</label>
+              <input type="text" id="config-input-target" class="config-input" placeholder="e.g. https://ehr.bayshore.internal or 10.10.1.10">
+            </div>
+            <div class="form-group">
+              <label>Test Type</label>
+              <select id="config-input-type" class="config-select">
+                <option value="webserver">Webserver (HTTP/HTTPS)</option>
+                <option value="generic_tcp">Generic Port / Ping</option>
+                <option value="voip_mos">VoIP MOS (Voice Quality)</option>
+                <option value="network">Network / Wi-Fi SSID</option>
+                <option value="core_service">Core Infrastructure Service</option>
+                <option value="iperf3">Throughput (iPerf3)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Initial Status</label>
+              <select id="config-input-status" class="config-select">
+                <option value="green">Healthy (Green)</option>
+                <option value="gray">Muted / Offline (Gray)</option>
+                <option value="red">Degraded (Red)</option>
+              </select>
+            </div>
+            <div class="form-group form-group-btn">
+              <button type="submit" class="btn btn-primary" id="btn-submit-item">+ Add to Pillar</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Configured Items Table -->
+        <div class="config-table-container">
+          <table class="config-items-table">
+            <thead>
+              <tr>
+                <th style="width: 140px;">Pill Preview</th>
+                <th>Item Name</th>
+                <th>Target / Destination</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th style="text-align: right; width: 120px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="config-items-tbody">
+              <!-- Dynamically populated via simpleView.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: space-between;">
+        <button class="btn btn-outline-danger" id="btn-reset-simple-items" onclick="resetSimpleViewDefaults()">Reset to Defaults</button>
+        <button class="btn btn-secondary" onclick="closeSimpleConfigModal()">Close & Apply</button>
       </div>
     </div>
   </div>

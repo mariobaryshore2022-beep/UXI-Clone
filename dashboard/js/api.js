@@ -58,5 +58,43 @@ const API = {
       body: JSON.stringify({ scenario })
     });
     return await res.json();
+  },
+
+  async getSimpleViewItems(pillar = null) {
+    const url = pillar ? `${this.baseUrl}/simple-view/items?pillar=${pillar}` : `${this.baseUrl}/simple-view/items`;
+    const res = await fetch(url);
+    return await res.json();
+  },
+
+  async createSimpleViewItem(data) {
+    const res = await fetch(`${this.baseUrl}/simple-view/items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return await res.json();
+  },
+
+  async updateSimpleViewItem(id, data) {
+    const res = await fetch(`${this.baseUrl}/simple-view/items/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return await res.json();
+  },
+
+  async deleteSimpleViewItem(id) {
+    const res = await fetch(`${this.baseUrl}/simple-view/items/${encodeURIComponent(id)}`, {
+      method: 'DELETE'
+    });
+    return await res.json();
+  },
+
+  async resetSimpleViewItems() {
+    const res = await fetch(`${this.baseUrl}/simple-view/reset`, {
+      method: 'POST'
+    });
+    return await res.json();
   }
 };

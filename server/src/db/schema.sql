@@ -165,3 +165,19 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     actor VARCHAR(64) DEFAULT 'system',
     details JSONB DEFAULT '{}'::jsonb
 );
+
+-- Configurable Items for the Simple View (4 Pillars)
+CREATE TABLE IF NOT EXISTS simple_view_items (
+    id VARCHAR(64) PRIMARY KEY,
+    pillar VARCHAR(32) NOT NULL, -- 'experience', 'services', 'internal', 'external'
+    name VARCHAR(128) NOT NULL,
+    target VARCHAR(256),
+    test_type VARCHAR(64) DEFAULT 'webserver', -- 'network', 'core_service', 'webserver', 'generic_tcp', 'voip_mos'
+    status VARCHAR(16) DEFAULT 'green', -- 'green', 'red', 'gray'
+    icon_type VARCHAR(32) DEFAULT '', -- '', 'wifi', 'bolt'
+    is_enabled BOOLEAN DEFAULT TRUE,
+    order_index INT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_simple_view_pillar ON simple_view_items (pillar, order_index);

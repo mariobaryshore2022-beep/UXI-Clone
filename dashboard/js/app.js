@@ -124,6 +124,10 @@ function initEventSource() {
     loadIncidentsAndIssues();
     if (typeof refreshSimpleView === 'function') refreshSimpleView();
   });
+
+  evtSource.addEventListener('simple_view_updated', () => {
+    if (typeof refreshSimpleView === 'function') refreshSimpleView();
+  });
 }
 
 // 3. Data Loaders

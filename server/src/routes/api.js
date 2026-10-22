@@ -513,4 +513,147 @@ router.post('/admin/clean-dummy-data', async (req, res) => {
   }
 });
 
+// ============================================================================
+// Simple View Configurable Items API (4 Pillars)
+// ============================================================================
+
+// GET /api/simple-view/items (List all or filter by pillar)
+router.get('/simple-view/items', async (req, res) => {
+  try {
+    const { pillar } = req.query;
+    let sql = 'SELECT * FROM simple_view_items';
+    const params = [];
+    if (pillar) {
+      sql += ' WHERE pillar = $1';
+      params.push(pillar);
+    }
+    sql += ' ORDER BY pillar ASC, order_index ASC, created_at ASC';
+    const result = await query(sql, params);
+
+    // Also group by pillar for convenient frontend consumption
+    const grouped = {
+      experience: [],
+      services: [],
+      internal: [],
+      external: []
+    };
+    result.rows.forEach(item => {
+      if (grouped[item.pillar]) {
+        grouped[item.pillar].push(item);
+      }
+    });
+
+    res.json({
+      items: result.rows,
+      pillars: grouped
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/simple-view/items (Create a new item)
+router.post('/simple-view/items', async (req, res) => {
+  try {
+    const { pillar, name, target, test_type, status, icon_type, is_enabled } = req.body;
+    if (!pillar || !name) {
+      return res.status(400).json({ error: 'Pillar and name are required' });
+    }
+
+    const id = `item-${pillar}-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+    
+    // Find next order index
+    const countRes = await query('SELECT COALESCE(MAX(order_index), 0) + 1 as next_idx FROM simple_view_items WHERE pillar = $1', [pillar]);
+    const nextIdx = countRes.rows[0].next_idx;
+
+    await query(`
+      INSERT INTO simple_view_items (id, pillar, name, target, test_type, status, icon_type, is_enabled, order_index)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `, [
+      id,
+      pillar,
+      name,
+      target || '',
+      test_type || 'webserver',
+      status || 'green',
+      icon_type || '',
+      is_enabled !== undefined ? Boolean(is_enabled) : true,
+      nextIdx
+    ]);
+
+    broadcastEvent('simple_view_updated', { action: 'create', id, pillar });
+    res.status(201).json({ status: 'ok', id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/simple-view/items/:id (Update an item)
+router.put('/simple-view/items/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, target, test_type, status, icon_type, is_enabled, order_index } = req.body;
+
+    const existing = await query('SELECT * FROM simple_view_items WHERE id = $1', [id]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+    const cur = existing.rows[0];
+
+    await query(`
+      UPDATE simple_view_items
+      SET name = $1,
+          target = $2,
+          test_type = $3,
+          status = $4,
+          icon_type = $5,
+          is_enabled = $6,
+          order_index = $7
+      WHERE id = $8
+    `, [
+      name !== undefined ? name : cur.name,
+      target !== undefined ? target : cur.target,
+      test_type !== undefined ? test_type : cur.test_type,
+      status !== undefined ? status : cur.status,
+      icon_type !== undefined ? icon_type : cur.icon_type,
+      is_enabled !== undefined ? Boolean(is_enabled) : cur.is_enabled,
+      order_index !== undefined ? parseInt(order_index, 10) : cur.order_index,
+      id
+    ]);
+
+    broadcastEvent('simple_view_updated', { action: 'update', id, pillar: cur.pillar });
+    res.json({ status: 'ok', id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/simple-view/items/:id (Delete an item)
+router.delete('/simple-view/items/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await query('SELECT pillar FROM simple_view_items WHERE id = $1', [id]);
+    const pillar = existing.rows[0]?.pillar;
+
+    await query('DELETE FROM simple_view_items WHERE id = $1', [id]);
+    broadcastEvent('simple_view_updated', { action: 'delete', id, pillar });
+    res.json({ status: 'ok', deleted: id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/simple-view/reset (Reset to default clean seed items)
+router.post('/simple-view/reset', async (req, res) => {
+  try {
+    await query('DELETE FROM simple_view_items');
+    const { seedData } = require('../db/seed');
+    await seedData();
+    broadcastEvent('simple_view_updated', { action: 'reset' });
+    res.json({ status: 'ok', message: 'Simple view items reset to default' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

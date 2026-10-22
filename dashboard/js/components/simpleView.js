@@ -1,9 +1,12 @@
 /**
  * Pulse UX "Simple View" - Authentic 4-Pillar Experience Dashboard
  * Pillars: Experience (Smiley Face), Services (Layers), Internal (Star), External (Cloud)
+ * Fully configurable via database & in-dashboard modal
  */
 
 let simpleViewInitialized = false;
+let currentConfigPillar = 'experience';
+let cachedSimpleItems = [];
 
 function initSimpleView() {
   if (simpleViewInitialized) {
@@ -11,33 +14,47 @@ function initSimpleView() {
     return;
   }
   simpleViewInitialized = true;
+
+  // Initialize modal event listeners
+  initSimpleConfigModalEvents();
+
   refreshSimpleView();
 }
 
 async function refreshSimpleView() {
   try {
-    const [overview, tests, incidents, issues, sensors] = await Promise.all([
+    const [overview, tests, incidents, issues, sensors, itemsData] = await Promise.all([
       API.getOverview(),
       API.getTests(),
       API.getIncidents(),
       API.getIssues(),
-      API.getSensors()
+      API.getSensors(),
+      API.getSimpleViewItems().catch(() => ({ items: [], pillars: {} }))
     ]);
+
+    cachedSimpleItems = itemsData.items || [];
 
     renderSimpleViewData({
       overview,
       tests: tests || [],
       incidents: incidents || [],
       issues: issues || [],
-      sensors: sensors || []
+      sensors: sensors || [],
+      pillars: itemsData.pillars || {}
     });
+
+    // If config modal is open, refresh its list
+    const modal = document.getElementById('modal-simple-config');
+    if (modal && modal.style.display !== 'none') {
+      renderConfigModalList(currentConfigPillar);
+    }
   } catch (err) {
     console.error('Failed to refresh Simple View:', err);
   }
 }
 
 function renderSimpleViewData(data) {
-  const { overview, tests, incidents, issues, sensors } = data;
+  const { overview, tests, incidents, issues, sensors, pillars } = data;
   const activeIncidents = incidents.filter(i => i.status === 'open');
   const activeIssues = issues.filter(i => i.status === 'active');
 
@@ -48,25 +65,55 @@ function renderSimpleViewData(data) {
   const hasGeneralIncident = activeIncidents.length > 0;
   const hasGeneralIssue = activeIssues.length > 0;
 
-  // Determine Pillar States
-  const hasDegradation = hasGeneralIncident || hasGeneralIssue || hasDhcpFailure || hasVoipIssue;
-  
-  let experienceState = hasDegradation ? 'bad' : 'good';
-  let servicesState = hasDhcpFailure ? 'bad' : 'good';
-  let internalState = (hasDhcpFailure || hasGeneralIncident) ? 'bad' : 'good';
-  let externalState = hasVoipIssue ? 'bad' : 'good';
+  // Retrieve configured items per pillar (fallback to defaults if empty)
+  const expItems = pillars.experience || [];
+  const srvItems = pillars.services || [];
+  const intItems = pillars.internal || [];
+  const extItems = pillars.external || [];
+
+  // Determine item health dynamically based on active issues
+  const evalItemStatus = (item) => {
+    if (!item.is_enabled) return { status: 'gray', icon: '' };
+    
+    // Check if item correlates with any active incident or issue
+    const nameLower = (item.name || '').toLowerCase();
+    const targetLower = (item.target || '').toLowerCase();
+
+    if (hasDhcpFailure && (nameLower.includes('dhcp') || nameLower.includes('gateway') || nameLower.includes('wi-fi') || targetLower.includes('dora'))) {
+      return { status: 'red', icon: nameLower.includes('wi-fi') ? 'wifi' : 'bolt' };
+    }
+    if (hasVoipIssue && (nameLower.includes('voip') || nameLower.includes('teams') || targetLower.includes('teams'))) {
+      return { status: 'red', icon: 'bolt' };
+    }
+    if (activeIncidents.some(inc => inc.title?.toLowerCase().includes(nameLower) || inc.description?.toLowerCase().includes(nameLower))) {
+      return { status: 'red', icon: 'wifi' };
+    }
+
+    return { status: item.status || 'green', icon: item.icon_type || '' };
+  };
+
+  // Evaluate Pillar States
+  const evaluatedExp = expItems.map(it => ({ ...it, ...evalItemStatus(it) }));
+  const evaluatedSrv = srvItems.map(it => ({ ...it, ...evalItemStatus(it) }));
+  const evaluatedInt = intItems.map(it => ({ ...it, ...evalItemStatus(it) }));
+  const evaluatedExt = extItems.map(it => ({ ...it, ...evalItemStatus(it) }));
+
+  const hasDegradedExp = evaluatedExp.some(it => it.status === 'red') || hasGeneralIncident || hasGeneralIssue;
+  const hasDegradedSrv = evaluatedSrv.some(it => it.status === 'red') || hasDhcpFailure;
+  const hasDegradedInt = evaluatedInt.some(it => it.status === 'red');
+  const hasDegradedExt = evaluatedExt.some(it => it.status === 'red');
 
   // 1. Render Experience Pillar
-  renderExperiencePillar(experienceState, overview, activeIncidents, activeIssues);
+  renderExperiencePillar(hasDegradedExp ? 'bad' : 'good', evaluatedExp);
 
   // 2. Render Services Pillar
-  renderServicesPillar(servicesState, hasDhcpFailure);
+  renderServicesPillar(hasDegradedSrv ? 'bad' : 'good', evaluatedSrv);
 
   // 3. Render Internal Pillar
-  renderInternalPillar(internalState, tests, hasDhcpFailure);
+  renderInternalPillar(hasDegradedInt ? 'bad' : 'good', evaluatedInt);
 
   // 4. Render External Pillar
-  renderExternalPillar(externalState, tests, hasVoipIssue);
+  renderExternalPillar(hasDegradedExt ? 'bad' : 'good', evaluatedExt);
 
   // 5. Update Notification Bell Badge in Header
   const badgeCount = activeIncidents.length + activeIssues.length;
@@ -80,13 +127,13 @@ function renderSimpleViewData(data) {
   const footerMeta = document.getElementById('simple-footer-fleet-meta');
   if (footerMeta) {
     const sensorCount = sensors.length || 1;
-    const sensorName = sensors[0]?.name || 'Kali-Linux-Sensor';
+    const sensorName = sensors[0]?.name || 'sensor-kali-arm64';
     footerMeta.innerText = `Pulse UX Fleet • ${sensorCount} Sensor (${sensorName}) • Bayshore HealthCare`;
   }
 }
 
 // 1. Experience Pillar (The Iconic Pulse UX Smiley / Sad Face)
-function renderExperiencePillar(state, overview, incidents, issues) {
+function renderExperiencePillar(state, items = []) {
   const circle = document.getElementById('simple-circle-experience');
   const svg = document.getElementById('simple-face-svg');
   const list = document.getElementById('simple-list-experience');
@@ -95,98 +142,75 @@ function renderExperiencePillar(state, overview, incidents, issues) {
   circle.className = `pillar-avatar-circle circle-${state}`;
 
   if (state === 'bad') {
-    // Sad Face (Matching Screenshot 1:1)
+    // Sad Face (Degraded Experience)
     svg.innerHTML = `
       <circle cx="36" cy="38" r="4.5" fill="#ffffff" />
       <circle cx="64" cy="38" r="4.5" fill="#ffffff" />
       <path d="M 32 66 Q 50 48 68 66" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" />
     `;
-
-    list.innerHTML = `
-      ${renderPillItem('Central-SEEL-DEMO', 'red', 'wifi')}
-      ${renderPillItem('Competitive TME T...', 'red', 'bolt')}
-      ${renderPillItem('Eric Lebel', 'red', 'bolt')}
-      ${renderPillItem('Winnersh', 'red', 'bolt')}
-      ${renderPillItem('Bayshore HealthCare', 'green')}
-    `;
   } else {
-    // Happy Smiling Face
+    // Happy Smiling Face (Healthy Experience)
     svg.innerHTML = `
       <circle cx="36" cy="38" r="4.5" fill="#ffffff" />
       <circle cx="64" cy="38" r="4.5" fill="#ffffff" />
       <path d="M 32 54 Q 50 74 68 54" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" />
     `;
-
-    list.innerHTML = `
-      ${renderPillItem('Central-SEEL-DEMO', 'green', 'wifi')}
-      ${renderPillItem('Competitive TME T...', 'green', 'bolt')}
-      ${renderPillItem('Eric Lebel', 'green', 'bolt')}
-      ${renderPillItem('Winnersh', 'green', 'bolt')}
-      ${renderPillItem('Bayshore HealthCare', 'green')}
-    `;
   }
+
+  if (items.length === 0) {
+    list.innerHTML = `<div class="empty-pillar-text">No networks configured</div>`;
+    return;
+  }
+
+  list.innerHTML = items.map(item => renderPillItem(item.name, item.status, item.icon)).join('');
 }
 
 // 2. Services Pillar
-function renderServicesPillar(state, hasDhcpFailure) {
+function renderServicesPillar(state, items = []) {
   const circle = document.getElementById('simple-circle-services');
   const list = document.getElementById('simple-list-services');
   if (!circle || !list) return;
 
   circle.className = `pillar-avatar-circle circle-${state}`;
 
-  list.innerHTML = `
-    ${renderPillItem('Wi-Fi', 'red', 'wifi')}
-    ${renderPillItem('Ethernet', 'green')}
-    ${renderPillItem('DHCP', hasDhcpFailure ? 'red' : 'green')}
-    ${renderPillItem('Gateway', hasDhcpFailure ? 'red' : 'green', hasDhcpFailure ? 'wifi' : '')}
-    ${renderPillItem('DNS', 'green')}
-  `;
+  if (items.length === 0) {
+    list.innerHTML = `<div class="empty-pillar-text">No services configured</div>`;
+    return;
+  }
+
+  list.innerHTML = items.map(item => renderPillItem(item.name, item.status, item.icon)).join('');
 }
 
 // 3. Internal Pillar
-function renderInternalPillar(state, tests, hasDhcpFailure) {
+function renderInternalPillar(state, items = []) {
   const circle = document.getElementById('simple-circle-internal');
   const list = document.getElementById('simple-list-internal');
   if (!circle || !list) return;
 
   circle.className = `pillar-avatar-circle circle-${state}`;
 
-  const isBad = state === 'bad';
-  list.innerHTML = `
-    ${renderPillItem('CRM Solution', isBad ? 'red' : 'green', isBad ? 'wifi' : '')}
-    ${renderPillItem('File Server', isBad ? 'red' : 'green', isBad ? 'wifi' : '')}
-    ${renderPillItem('Pulse Core API', 'green')}
-    ${renderPillItem('Bayshore EHR Portal', 'green')}
-    ${renderPillItem('ESXi Server', 'green')}
-    ${renderPillItem('Lab Webserver', 'green')}
-    ${renderPillItem('iPerf2-FACS', 'green')}
-    ${renderPillItem('Pulse Gateway', 'gray')}
-    ${renderPillItem('Identity Server', 'gray')}
-    ${renderPillItem('Clinic-Camera', 'gray')}
-  `;
+  if (items.length === 0) {
+    list.innerHTML = `<div class="empty-pillar-text">No internal apps configured</div>`;
+    return;
+  }
+
+  list.innerHTML = items.map(item => renderPillItem(item.name, item.status, item.icon)).join('');
 }
 
 // 4. External Pillar
-function renderExternalPillar(state, tests, hasVoipIssue) {
+function renderExternalPillar(state, items = []) {
   const circle = document.getElementById('simple-circle-external');
   const list = document.getElementById('simple-list-external');
   if (!circle || !list) return;
 
   circle.className = `pillar-avatar-circle circle-${state}`;
 
-  list.innerHTML = `
-    ${renderPillItem('CNN', 'green')}
-    ${renderPillItem('Dropbox', 'green')}
-    ${renderPillItem('Facebook', 'green')}
-    ${renderPillItem('Github', 'green')}
-    ${renderPillItem('Google Drive', 'green')}
-    ${renderPillItem('Google Mail', 'green')}
-    ${renderPillItem('Hootsuite', 'green')}
-    ${renderPillItem('LinkedIn', 'green')}
-    ${renderPillItem('Netflix (Fast.com)', 'green')}
-    ${renderPillItem('Office365', 'gray')}
-  `;
+  if (items.length === 0) {
+    list.innerHTML = `<div class="empty-pillar-text">No cloud apps configured</div>`;
+    return;
+  }
+
+  list.innerHTML = items.map(item => renderPillItem(item.name, item.status, item.icon)).join('');
 }
 
 // Helper to generate the exact pill item markup for Pulse UX
@@ -214,3 +238,166 @@ function renderPillItem(name, status, iconType = '') {
     </div>
   `;
 }
+
+// ============================================================================
+// Interactive Simple View Configuration Modal Logic
+// ============================================================================
+
+function openSimpleConfigModal() {
+  const modal = document.getElementById('modal-simple-config');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  renderConfigModalList(currentConfigPillar);
+}
+
+function closeSimpleConfigModal() {
+  const modal = document.getElementById('modal-simple-config');
+  if (modal) modal.style.display = 'none';
+  refreshSimpleView();
+}
+
+function initSimpleConfigModalEvents() {
+  // Tab switching inside modal
+  const tabBtns = document.querySelectorAll('.config-tab-btn');
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const pillar = btn.getAttribute('data-pillar');
+      currentConfigPillar = pillar;
+      renderConfigModalList(pillar);
+    });
+  });
+
+  // Add Item Form Submit
+  const form = document.getElementById('form-add-simple-item');
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('config-input-name').value.trim();
+      const target = document.getElementById('config-input-target').value.trim();
+      const test_type = document.getElementById('config-input-type').value;
+      const status = document.getElementById('config-input-status').value;
+
+      if (!name) return;
+
+      const submitBtn = document.getElementById('btn-submit-item');
+      if (submitBtn) submitBtn.disabled = true;
+
+      try {
+        await API.createSimpleViewItem({
+          pillar: currentConfigPillar,
+          name,
+          target,
+          test_type,
+          status,
+          icon_type: test_type === 'network' ? 'wifi' : '',
+          is_enabled: true
+        });
+
+        // Clear input fields
+        document.getElementById('config-input-name').value = '';
+        document.getElementById('config-input-target').value = '';
+        
+        await refreshSimpleView();
+      } catch (err) {
+        alert('Failed to add item: ' + err.message);
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
+      }
+    });
+  }
+}
+
+function renderConfigModalList(pillar) {
+  const tbody = document.getElementById('config-items-tbody');
+  const formTitle = document.getElementById('config-form-title');
+  const pillarInput = document.getElementById('config-input-pillar');
+  if (!tbody) return;
+
+  const pillarTitles = {
+    experience: 'Experience (Monitored Networks & Sites)',
+    services: 'Core Services (Wi-Fi, DHCP, DNS, Gateway)',
+    internal: 'Internal Applications (Intranet & EHR)',
+    external: 'External Cloud Services & SaaS'
+  };
+
+  if (formTitle) formTitle.innerText = `Add Item to ${pillarTitles[pillar] || pillar}`;
+  if (pillarInput) pillarInput.value = pillar;
+
+  const items = cachedSimpleItems.filter(it => it.pillar === pillar);
+
+  if (items.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align: center; color: #64748b; padding: 2rem;">
+          No items configured in this pillar yet. Use the form above to add one.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = items.map(item => `
+    <tr>
+      <td>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <div class="item-pill-bar pill-${item.status || 'green'}" style="height: 14px; width: 32px; border-radius: 3px;"></div>
+          <span style="font-size: 0.7rem; font-family: var(--font-mono); color: #94a3b8;">${item.status}</span>
+        </div>
+      </td>
+      <td><strong>${item.name}</strong></td>
+      <td style="font-family: var(--font-mono); font-size: 0.75rem; color: #38bdf8;">${item.target || '--'}</td>
+      <td><span class="badge badge-cyan-outline" style="font-size: 0.65rem;">${item.test_type || 'service'}</span></td>
+      <td>
+        <span style="color: ${item.is_enabled ? 'var(--pulse-emerald)' : 'var(--text-muted)'}; font-weight: 600;">
+          ${item.is_enabled ? 'Active' : 'Disabled'}
+        </span>
+      </td>
+      <td style="text-align: right;">
+        <button class="btn-action-toggle" onclick="toggleSimpleItemStatus('${item.id}', '${item.status === 'green' ? 'red' : 'green'}')">
+          ${item.status === 'green' ? 'Set Red' : 'Set Green'}
+        </button>
+        <button class="btn-action-del" onclick="deleteSimpleItem('${item.id}')" title="Delete item">
+          Delete
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function toggleSimpleItemStatus(id, newStatus) {
+  try {
+    await API.updateSimpleViewItem(id, { status: newStatus });
+    await refreshSimpleView();
+  } catch (err) {
+    alert('Failed to update status: ' + err.message);
+  }
+}
+
+async function deleteSimpleItem(id) {
+  if (!confirm('Remove this item from the Simple View pillar?')) return;
+  try {
+    await API.deleteSimpleViewItem(id);
+    await refreshSimpleView();
+  } catch (err) {
+    alert('Failed to delete item: ' + err.message);
+  }
+}
+
+async function resetSimpleViewDefaults() {
+  if (!confirm('Reset all 4 pillars to default clean Bayshore HealthCare items?')) return;
+  try {
+    await API.resetSimpleViewItems();
+    await refreshSimpleView();
+  } catch (err) {
+    alert('Failed to reset: ' + err.message);
+  }
+}
+
+// Expose globals for onclick handlers
+window.openSimpleConfigModal = openSimpleConfigModal;
+window.closeSimpleConfigModal = closeSimpleConfigModal;
+window.toggleSimpleItemStatus = toggleSimpleItemStatus;
+window.deleteSimpleItem = deleteSimpleItem;
+window.resetSimpleViewDefaults = resetSimpleViewDefaults;
