@@ -1500,4 +1500,532 @@
   border-color: #f43f5e;
 }
 
+/* ==========================================================================
+   11. Sensor Fleet Geospatial Map & Drill-Down Drawer
+   ========================================================================== */
+.map-view-container {
+  display: flex;
+  height: calc(100vh - 140px);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  background: #070d16;
+  position: relative;
+}
+
+.map-sidebar {
+  width: 350px;
+  min-width: 320px;
+  max-width: 380px;
+  background: rgba(10, 19, 32, 0.96);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+}
+
+.map-sidebar-header {
+  padding: 1.15rem 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.map-search-wrap {
+  position: relative;
+  margin-bottom: 0.75rem;
+}
+
+.map-search-input {
+  width: 100%;
+  background: #060b13;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  padding: 0.45rem 0.65rem 0.45rem 2rem;
+  border-radius: 6px;
+  font-size: 0.76rem;
+}
+
+.map-search-input:focus {
+  outline: none;
+  border-color: #00f2fe;
+}
+
+.map-stats-chips {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.map-stats-chips .status-chip {
+  font-size: 0.68rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.map-stats-chips .status-chip:hover {
+  color: #ffffff;
+}
+
+.map-stats-chips .status-chip.active {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+
+.map-sensors-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.map-sensor-card {
+  background: rgba(15, 25, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 0.85rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.map-sensor-card:hover, .map-sensor-card.selected {
+  border-color: #00f2fe;
+  background: rgba(0, 242, 254, 0.06);
+  box-shadow: 0 0 16px rgba(0, 242, 254, 0.15);
+}
+
+.map-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.map-card-name {
+  font-size: 0.82rem;
+  color: #f8fafc;
+}
+
+.map-card-location {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin-bottom: 0.4rem;
+}
+
+.map-card-meta {
+  font-size: 0.68rem;
+  color: #64748b;
+  font-family: var(--font-mono);
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.65rem;
+}
+
+.map-card-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-card-action {
+  flex: 1;
+  padding: 0.32rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: all 0.2s;
+}
+
+.btn-card-inspect {
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: #38bdf8;
+}
+
+.btn-card-inspect:hover {
+  background: #38bdf8;
+  color: #000;
+}
+
+.btn-card-pin {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+}
+
+.btn-card-pin:hover {
+  border-color: #00f2fe;
+  color: #ffffff;
+}
+
+.map-canvas-wrapper {
+  flex: 1;
+  position: relative;
+  height: 100%;
+}
+
+.fleet-map-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 500px;
+  background: #070d16;
+}
+
+.map-floating-toolbar {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1000;
+  display: flex;
+  gap: 8px;
+}
+
+.map-tool-btn {
+  background: rgba(10, 19, 32, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #f8fafc;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  transition: all 0.2s;
+}
+
+.map-tool-btn:hover {
+  border-color: #00f2fe;
+  color: #00f2fe;
+}
+
+/* Custom Pulsing Markers */
+.pulse-custom-map-pin {
+  background: transparent;
+  border: none;
+}
+
+.pin-beacon {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.pin-core {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 14px rgba(0, 180, 216, 0.85);
+  border: 2px solid #ffffff;
+  z-index: 2;
+  transition: transform 0.2s;
+}
+
+.pin-beacon:hover .pin-core {
+  transform: scale(1.15);
+}
+
+.marker-degraded .pin-core {
+  background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%);
+  box-shadow: 0 0 14px rgba(244, 63, 94, 0.85);
+}
+
+.pin-ring {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid #00f2fe;
+  animation: pinPulseAnim 2.2s infinite ease-out;
+  pointer-events: none;
+}
+
+.marker-degraded .pin-ring {
+  border-color: #f43f5e;
+}
+
+@keyframes pinPulseAnim {
+  0% { transform: scale(0.7); opacity: 1; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+.pin-label {
+  position: absolute;
+  bottom: -20px;
+  white-space: nowrap;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #ffffff;
+  background: rgba(9, 13, 22, 0.92);
+  padding: 1px 7px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+/* Slide-Over Sensor Drilldown Drawer */
+.sensor-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 440px;
+  max-width: 90%;
+  background: rgba(9, 17, 30, 0.98);
+  border-left: 1px solid rgba(56, 189, 248, 0.3);
+  z-index: 1001;
+  backdrop-filter: blur(16px);
+  box-shadow: -12px 0 35px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  animation: drawerSlideIn 0.25s ease-out;
+}
+
+@keyframes drawerSlideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.drawer-header {
+  padding: 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(15, 25, 42, 0.5);
+}
+
+.drawer-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0;
+}
+
+.drawer-subtitle {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-family: var(--font-mono);
+  display: block;
+  margin-top: 0.2rem;
+}
+
+.drawer-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.drawer-close-btn:hover {
+  color: #ffffff;
+}
+
+.drawer-body {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.drawer-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.drawer-stat-card {
+  background: #060b13;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 0.8rem;
+}
+
+.drawer-stat-label {
+  font-size: 0.65rem;
+  color: #64748b;
+  font-weight: 700;
+  text-transform: uppercase;
+  display: block;
+}
+
+.drawer-stat-val {
+  font-size: 1.2rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  margin: 0.25rem 0;
+}
+
+.drawer-stat-sub {
+  font-size: 0.65rem;
+  color: #64748b;
+  display: block;
+}
+
+.drawer-section {
+  background: #060b13;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.drawer-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.drawer-section-title {
+  font-size: 0.72rem;
+  color: #38bdf8;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.btn-inline-action {
+  background: transparent;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: #38bdf8;
+  font-size: 0.68rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-inline-action:hover {
+  background: rgba(56, 189, 248, 0.15);
+  color: #ffffff;
+}
+
+.drawer-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.drawer-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.info-label {
+  font-size: 0.65rem;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.info-val {
+  font-size: 0.78rem;
+  color: #f8fafc;
+  font-weight: 600;
+}
+
+.drawer-edit-form {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.drawer-edit-form .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.drawer-input {
+  background: #0b1523;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  width: 100%;
+}
+
+.drawer-input:focus {
+  outline: none;
+  border-color: #00f2fe;
+}
+
+.drawer-action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.drawer-btn-full {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: 6px;
+}
+
+.map-pinning-toast {
+  position: fixed;
+  bottom: 25px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0d284a;
+  border: 1px solid #00f2fe;
+  color: #ffffff;
+  padding: 0.75rem 1.35rem;
+  border-radius: 30px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.85);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  font-size: 0.82rem;
+  animation: fadeIn 0.2s ease-in;
+}
+
+.map-pinning-toast button {
+  background: #f43f5e;
+  border: none;
+  color: #ffffff;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 

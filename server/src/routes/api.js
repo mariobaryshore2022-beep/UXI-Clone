@@ -197,6 +197,31 @@ router.post('/sensors/register', async (req, res) => {
   }
 });
 
+// 3b. Update Sensor Map Coordinates & Location Metadata
+router.put('/sensors/:id/location', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { latitude, longitude, location_name, floor } = req.body;
+
+    const lat = latitude !== undefined && latitude !== null && latitude !== '' ? parseFloat(latitude) : null;
+    const lng = longitude !== undefined && longitude !== null && longitude !== '' ? parseFloat(longitude) : null;
+
+    await query(`
+      UPDATE sensors 
+      SET latitude = $1, 
+          longitude = $2, 
+          location_name = COALESCE($3, location_name), 
+          floor = COALESCE($4, floor)
+      WHERE id = $5
+    `, [lat, lng, location_name || null, floor || null, id]);
+
+    broadcastEvent('sensor_location_updated', { id, latitude: lat, longitude: lng, location_name, floor });
+    res.json({ status: 'ok', id, latitude: lat, longitude: lng, location_name, floor });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 4. Update Current Sensor Cycle Stage
 router.post('/telemetry/stage', async (req, res) => {
   try {

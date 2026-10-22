@@ -19,6 +19,10 @@ CREATE TABLE IF NOT EXISTS sensors (
     cycle_count INT DEFAULT 0,
     groups JSONB DEFAULT '["HQ-Campus", "Floor-3-Wireless"]'::jsonb,
     hardware_info JSONB DEFAULT '{}'::jsonb,
+    latitude DOUBLE PRECISION DEFAULT 43.6532,
+    longitude DOUBLE PRECISION DEFAULT -79.3832,
+    location_name VARCHAR(128) DEFAULT 'Bayshore HealthCare HQ',
+    floor VARCHAR(32) DEFAULT 'Floor 3 - East Wing',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 

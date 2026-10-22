@@ -20,6 +20,15 @@ const API = {
     return await res.json();
   },
 
+  async updateSensorLocation(sensorId, data) {
+    const res = await fetch(`${this.baseUrl}/sensors/${encodeURIComponent(sensorId)}/location`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return await res.json();
+  },
+
   async getWifiTelemetry(sensorId = null) {
     const url = sensorId ? `${this.baseUrl}/telemetry/wifi?sensor_id=${sensorId}` : `${this.baseUrl}/telemetry/wifi`;
     const res = await fetch(url);

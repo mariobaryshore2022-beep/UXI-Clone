@@ -1,6 +1,24 @@
 const { query } = require('./index');
 
 async function seedData() {
+  // Ensure location columns exist on sensors table
+  try {
+    await query(`ALTER TABLE sensors ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION DEFAULT 43.6532;`);
+    await query(`ALTER TABLE sensors ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION DEFAULT -79.3832;`);
+    await query(`ALTER TABLE sensors ADD COLUMN IF NOT EXISTS location_name VARCHAR(128) DEFAULT 'Bayshore HealthCare HQ';`);
+    await query(`ALTER TABLE sensors ADD COLUMN IF NOT EXISTS floor VARCHAR(32) DEFAULT 'Floor 3 - East Wing';`);
+    await query(`
+      UPDATE sensors 
+      SET latitude = COALESCE(latitude, 43.6532),
+          longitude = COALESCE(longitude, -79.3832),
+          location_name = COALESCE(location_name, 'Bayshore HealthCare HQ'),
+          floor = COALESCE(floor, 'Floor 3 - East Wing')
+      WHERE id = 'sensor-kali-arm64'
+    `);
+  } catch (e) {
+    console.warn('Migration for sensor location columns:', e.message);
+  }
+
   // Ensure default test definitions exist for synthetic testing
   const existingTests = await query('SELECT count(*) as count FROM test_definitions');
   if (parseInt(existingTests.rows[0].count, 10) === 0) {

@@ -47,6 +47,7 @@ function initNavigation() {
 
     // Refresh specific tab data on activation
     if (targetId === 'tab-simple' && typeof refreshSimpleView === 'function') refreshSimpleView();
+    if (targetId === 'tab-map' && typeof initFleetMap === 'function') initFleetMap();
     if (targetId === 'tab-wifi') loadWifiEnvironment();
     if (targetId === 'tab-sensors') {
       loadSensors();
@@ -127,6 +128,16 @@ function initEventSource() {
 
   evtSource.addEventListener('simple_view_updated', () => {
     if (typeof refreshSimpleView === 'function') refreshSimpleView();
+  });
+
+  evtSource.addEventListener('sensor_updated', () => {
+    loadSensors();
+    if (typeof refreshFleetMapData === 'function') refreshFleetMapData();
+  });
+
+  evtSource.addEventListener('sensor_location_updated', () => {
+    loadSensors();
+    if (typeof refreshFleetMapData === 'function') refreshFleetMapData();
   });
 }
 
