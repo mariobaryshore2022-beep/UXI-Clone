@@ -235,7 +235,13 @@
           <div class="map-sidebar-header">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem;">
               <h3 style="font-size: 0.85rem; font-weight: 800; letter-spacing: 0.05em; color: #fff; margin: 0; text-transform: uppercase;">SENSOR FLEET LOCATIONS</h3>
-              <span class="badge badge-cyan-outline" id="map-fleet-count">1 SENSOR</span>
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <button class="btn btn-secondary" onclick="openManualLocationModal()" style="padding: 0.25rem 0.65rem; font-size: 0.72rem; display: flex; align-items: center; gap: 4px;" title="Manually Enter Coordinates or Facility">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="2.5"/></svg>
+                  Set Location
+                </button>
+                <span class="badge badge-cyan-outline" id="map-fleet-count">1 SENSOR</span>
+              </div>
             </div>
             <div class="map-search-wrap">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" style="position: absolute; left: 10px; top: 10px;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -260,6 +266,10 @@
 
           <!-- Floating Map Controls Overlay -->
           <div class="map-floating-toolbar">
+            <button class="map-tool-btn" id="btn-map-set-location" onclick="openManualLocationModal()" title="Manually Enter Coordinates or Facility">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="2.5"/></svg>
+              Set Location
+            </button>
             <button class="map-tool-btn" id="btn-map-recenter" title="Recenter on Fleet">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
               Recenter
@@ -859,6 +869,87 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeMetricsModal()">Close</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Manually Set Sensor Location Modal -->
+  <div id="modal-set-sensor-location" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <h3 id="modal-location-title" style="display: flex; align-items: center; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00f2fe" stroke-width="2.5"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="2.5"/></svg>
+            Manually Set Sensor Location
+          </h3>
+          <span class="modal-subtext">Pin GPS coordinates, clinical facility site, and indoor floor/unit</span>
+        </div>
+        <button class="btn-close" onclick="closeManualLocationModal()">&times;</button>
+      </div>
+      <form id="form-manual-location" onsubmit="handleManualLocationSubmit(event)">
+        <div class="modal-body" style="padding: 1.25rem;">
+          
+          <!-- Sensor Selection -->
+          <div class="form-group" style="margin-bottom: 1.15rem;">
+            <label for="manual-loc-sensor-select" style="font-size: 0.78rem; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em;">Target Sensor</label>
+            <select id="manual-loc-sensor-select" class="config-select" style="width: 100%;" onchange="onManualLocationSensorChange(this.value)">
+              <!-- Dynamically populated via fleetMap.js -->
+            </select>
+          </div>
+
+          <!-- Quick Facility Presets -->
+          <div style="margin-bottom: 1.15rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label style="font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Quick Facility Presets</label>
+              <button type="button" class="preset-chip preset-chip-geo" onclick="useBrowserGeolocation()" title="Use device current GPS location">📍 Use My GPS</button>
+            </div>
+            <div class="location-preset-chips">
+              <button type="button" class="preset-chip" onclick="applyLocationPreset(43.6532, -79.3832, 'Bayshore HealthCare HQ', 'Floor 3 - East Wing')">🏢 Bayshore HQ (Toronto)</button>
+              <button type="button" class="preset-chip" onclick="applyLocationPreset(43.5890, -79.6441, 'Mississauga Clinical Center', 'Floor 2 - Telehealth')">🏥 Mississauga Clinic</button>
+              <button type="button" class="preset-chip" onclick="applyLocationPreset(45.4215, -75.6972, 'Ottawa Regional Care Center', 'Floor 1 - Triage')">🏥 Ottawa Regional</button>
+              <button type="button" class="preset-chip" onclick="applyLocationPreset(45.5017, -73.5673, 'Montreal Clinical Branch', 'Floor 4 - ICU')">🏥 Montreal Branch</button>
+              <button type="button" class="preset-chip" onclick="applyLocationPreset(49.2827, -123.1207, 'Vancouver Health Center', 'Main Wing - Lab 2')">🏥 Vancouver Health</button>
+            </div>
+          </div>
+
+          <!-- Coordinate Inputs (Lat, Lng) -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem;">
+            <div class="form-group">
+              <label for="manual-loc-lat" style="font-size: 0.78rem; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em;">Latitude (&deg;N)</label>
+              <input type="number" step="any" id="manual-loc-lat" class="config-input" placeholder="e.g. 43.6532" required style="width: 100%; font-family: var(--font-mono); font-size: 0.85rem;">
+            </div>
+            <div class="form-group">
+              <label for="manual-loc-lng" style="font-size: 0.78rem; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em;">Longitude (&deg;W)</label>
+              <input type="number" step="any" id="manual-loc-lng" class="config-input" placeholder="e.g. -79.3832" required style="width: 100%; font-family: var(--font-mono); font-size: 0.85rem;">
+            </div>
+          </div>
+
+          <!-- Facility & Floor Details -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 0.5rem;">
+            <div class="form-group">
+              <label for="manual-loc-facility" style="font-size: 0.78rem; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em;">Facility / Site Name</label>
+              <input type="text" id="manual-loc-facility" class="config-input" placeholder="e.g. Bayshore HealthCare HQ" style="width: 100%;">
+            </div>
+            <div class="form-group">
+              <label for="manual-loc-floor" style="font-size: 0.78rem; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em;">Floor / Unit / Wing</label>
+              <input type="text" id="manual-loc-floor" class="config-input" placeholder="e.g. Floor 3 - East Wing" style="width: 100%;">
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+          <button type="button" class="btn btn-secondary" onclick="triggerPinFromModal()" title="Switch to map targeting mode">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="2.5"/></svg>
+            Click to Pin on Map
+          </button>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn btn-secondary" onclick="closeManualLocationModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-save-manual-loc">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+              Save Location
+            </button>
+          </div>
+        </div>
+      </form>
     </div>
   </div>
 

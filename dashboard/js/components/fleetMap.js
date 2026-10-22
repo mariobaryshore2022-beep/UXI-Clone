@@ -239,9 +239,13 @@ function renderFleetSidebarList(sensors = []) {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             Inspect
           </button>
-          <button class="btn-card-action btn-card-pin" onclick="startPinningMode('${sensor.id}', event)">
+          <button class="btn-card-action btn-card-manual-loc" onclick="openManualLocationModal('${sensor.id}', event)" title="Manually Enter Coordinates & Facility">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="2.5"/></svg>
-            ${hasCoordinates ? 'Repin' : 'Pin on Map'}
+            Set Location
+          </button>
+          <button class="btn-card-action btn-card-pin" onclick="startPinningMode('${sensor.id}', event)" title="Click on map to drop pin">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            ${hasCoordinates ? 'Pin Map' : 'Drop Pin'}
           </button>
         </div>
       </div>
@@ -363,7 +367,10 @@ function showSensorDrilldown(sensor) {
       <div class="drawer-section">
         <div class="drawer-section-header">
           <h4 class="drawer-section-title">PHYSICAL LOCATION & FLOOR PLAN</h4>
-          <button class="btn-inline-action" onclick="toggleEditLocationForm()">Edit Coordinates</button>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn-inline-action" onclick="openManualLocationModal('${sensor.id}')">Set Location</button>
+            <button class="btn-inline-action" onclick="toggleEditLocationForm()">Inline Edit</button>
+          </div>
         </div>
         <div class="drawer-info-grid">
           <div class="drawer-info-item">
@@ -614,6 +621,131 @@ function openRawMetricsModalForSensor(sensorId) {
   }
 }
 
+/**
+ * Open Manually Set Location Modal
+ */
+function openManualLocationModal(sensorId = null, event = null) {
+  if (event) event.stopPropagation();
+
+  const modal = document.getElementById('modal-set-sensor-location');
+  const select = document.getElementById('manual-loc-sensor-select');
+  if (!modal || !select) return;
+
+  // Populate sensor select dropdown
+  select.innerHTML = allFleetSensors.map(s => `
+    <option value="${s.id}">${s.name} (${s.id})</option>
+  `).join('');
+
+  const targetId = sensorId || (allFleetSensors.length > 0 ? allFleetSensors[0].id : null);
+  if (targetId) {
+    select.value = targetId;
+    onManualLocationSensorChange(targetId);
+  }
+
+  modal.style.display = 'flex';
+}
+
+function closeManualLocationModal() {
+  const modal = document.getElementById('modal-set-sensor-location');
+  if (modal) modal.style.display = 'none';
+}
+
+function onManualLocationSensorChange(sensorId) {
+  const sensor = allFleetSensors.find(s => s.id === sensorId);
+  if (!sensor) return;
+
+  const latInput = document.getElementById('manual-loc-lat');
+  const lngInput = document.getElementById('manual-loc-lng');
+  const locInput = document.getElementById('manual-loc-facility');
+  const floorInput = document.getElementById('manual-loc-floor');
+
+  if (latInput) latInput.value = sensor.latitude !== null && sensor.latitude !== undefined ? sensor.latitude : 43.6532;
+  if (lngInput) lngInput.value = sensor.longitude !== null && sensor.longitude !== undefined ? sensor.longitude : -79.3832;
+  if (locInput) locInput.value = sensor.location_name || 'Bayshore HealthCare HQ';
+  if (floorInput) floorInput.value = sensor.floor || 'Floor 3 - East Wing';
+}
+
+function applyLocationPreset(lat, lng, facility, floor) {
+  const latInput = document.getElementById('manual-loc-lat');
+  const lngInput = document.getElementById('manual-loc-lng');
+  const locInput = document.getElementById('manual-loc-facility');
+  const floorInput = document.getElementById('manual-loc-floor');
+
+  if (latInput) latInput.value = lat;
+  if (lngInput) lngInput.value = lng;
+  if (locInput) locInput.value = facility;
+  if (floorInput) floorInput.value = floor;
+}
+
+function useBrowserGeolocation() {
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported by your browser.');
+    return;
+  }
+  const geoBtn = document.querySelector('.preset-chip-geo');
+  const originalText = geoBtn ? geoBtn.innerText : '📍 Use My GPS';
+  if (geoBtn) geoBtn.innerText = 'Acquiring GPS...';
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      if (geoBtn) geoBtn.innerText = originalText;
+      const lat = parseFloat(position.coords.latitude.toFixed(6));
+      const lng = parseFloat(position.coords.longitude.toFixed(6));
+      applyLocationPreset(lat, lng, 'Local Clinical Site (GPS)', 'Ground Floor');
+    },
+    (err) => {
+      if (geoBtn) geoBtn.innerText = originalText;
+      alert('Unable to retrieve GPS position: ' + err.message);
+    },
+    { timeout: 10000, enableHighAccuracy: true }
+  );
+}
+
+function triggerPinFromModal() {
+  const select = document.getElementById('manual-loc-sensor-select');
+  const sensorId = select ? select.value : (allFleetSensors[0] ? allFleetSensors[0].id : null);
+  closeManualLocationModal();
+  if (sensorId) {
+    startPinningMode(sensorId);
+  }
+}
+
+async function handleManualLocationSubmit(e) {
+  e.preventDefault();
+  const select = document.getElementById('manual-loc-sensor-select');
+  const sensorId = select ? select.value : null;
+  if (!sensorId) return;
+
+  const lat = parseFloat(document.getElementById('manual-loc-lat').value);
+  const lng = parseFloat(document.getElementById('manual-loc-lng').value);
+  const location_name = document.getElementById('manual-loc-facility').value.trim();
+  const floor = document.getElementById('manual-loc-floor').value.trim();
+
+  const saveBtn = document.getElementById('btn-save-manual-loc');
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerText = 'Saving...';
+  }
+
+  try {
+    await saveSensorCoordinates(sensorId, lat, lng, location_name, floor);
+    closeManualLocationModal();
+
+    // Focus map smoothly on new coordinates
+    if (fleetMapInstance) {
+      fleetMapInstance.flyTo([lat, lng], 15, { duration: 1.2 });
+    }
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        Save Location
+      `;
+    }
+  }
+}
+
 // Expose globals for onclick handlers
 window.initFleetMap = initFleetMap;
 window.refreshFleetMapData = refreshFleetMapData;
@@ -625,3 +757,11 @@ window.toggleEditLocationForm = toggleEditLocationForm;
 window.saveDrawerLocation = saveDrawerLocation;
 window.drillDownToSensorHistory = drillDownToSensorHistory;
 window.openRawMetricsModalForSensor = openRawMetricsModalForSensor;
+window.openManualLocationModal = openManualLocationModal;
+window.closeManualLocationModal = closeManualLocationModal;
+window.onManualLocationSensorChange = onManualLocationSensorChange;
+window.applyLocationPreset = applyLocationPreset;
+window.useBrowserGeolocation = useBrowserGeolocation;
+window.triggerPinFromModal = triggerPinFromModal;
+window.handleManualLocationSubmit = handleManualLocationSubmit;
+
