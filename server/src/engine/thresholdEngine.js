@@ -141,6 +141,16 @@ async function evaluateResult(sensorId, networkId, testId, stage, success, durat
         issue.observed,
         issue.threshold
       ]);
+
+      // Fire outbound webhook notification
+      dispatchWebhook('issue_created', {
+        issue_id: issueId,
+        sensor_id: sensorId,
+        network_id: networkId,
+        test_id: testId,
+        stage,
+        ...issue
+      });
     }
 
     // Auto-resolve active issues when test metrics recover and operate within SLA
@@ -154,7 +164,7 @@ async function evaluateResult(sensorId, networkId, testId, stage, success, durat
             ($2::varchar IS NOT NULL AND test_id = $2)
             OR (metric_name ILIKE '%' || $3 || '%' OR title ILIKE '%' || $3 || '%')
           )
-        RETURNING id, incident_id
+        RETURNING id, incident_id, title
       `, [sensorId, testId || null, stage]);
 
       // Auto-resolve any correlated parent incidents whose child issues are all resolved
@@ -170,6 +180,14 @@ async function evaluateResult(sensorId, networkId, testId, stage, success, durat
             HAVING count(iss.id) = 0
           )
         `);
+
+        dispatchWebhook('issues_resolved', {
+          sensor_id: sensorId,
+          stage,
+          test_id: testId,
+          resolved_count: resolvedRes.rows.length,
+          issues: resolvedRes.rows
+        });
       }
     }
 
@@ -180,4 +198,27 @@ async function evaluateResult(sensorId, networkId, testId, stage, success, durat
   }
 }
 
-module.exports = { evaluateResult };
+async function dispatchWebhook(eventType, payload) {
+  try {
+    const res = await query("SELECT value FROM system_settings WHERE key = 'global_thresholds'");
+    const settings = res.rows[0]?.value || {};
+    if (!settings.webhook_url || !settings.webhook_url.startsWith('http')) return;
+
+    fetch(settings.webhook_url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event: eventType,
+        timestamp: new Date().toISOString(),
+        data: payload
+      }),
+      signal: AbortSignal.timeout(4000)
+    }).catch(err => {
+      console.warn(`[Webhook Alert] Failed to dispatch ${eventType} to ${settings.webhook_url}:`, err.message);
+    });
+  } catch (err) {
+    // Non-blocking
+  }
+}
+
+module.exports = { evaluateResult, dispatchWebhook };
