@@ -1121,4 +1121,60 @@ router.post('/simple-view/reset', async (req, res) => {
   }
 });
 
+// POST /api/simple-view/preset (Load pre-packaged presets such as 'aruba' or 'bayshore')
+router.post('/simple-view/preset', async (req, res) => {
+  try {
+    const { preset } = req.body;
+    await query('DELETE FROM simple_view_items');
+
+    if (preset === 'aruba' || preset === 'demo') {
+      const arubaItems = [
+        // Experience
+        ['demo-exp-1', 'experience', 'Scarif', 'Cape', 'network', 'red', 'wifi', true, 1],
+        ['demo-exp-2', 'experience', 'Yavin', 'Yavin-AP', 'network', 'red', 'wifi', true, 2],
+        ['demo-exp-3', 'experience', 'Coruscant', 'Coruscant-5G', 'network', 'yellow', 'wifi', true, 3],
+        // Services
+        ['demo-srv-1', 'services', 'Wi-Fi Association', '802.11 Link / wpa_supplicant', 'core_service', 'green', 'wifi', true, 1],
+        ['demo-srv-2', 'services', 'Ethernet Link', 'eth0 Carrier', 'core_service', 'green', '', true, 2],
+        ['demo-srv-3', 'services', 'DHCP (IP Allocation)', 'DORA 4-Way Handshake', 'core_service', 'green', '', true, 3],
+        ['demo-srv-4', 'services', 'Default Gateway', '192.168.1.1', 'core_service', 'green', '', true, 4],
+        ['demo-srv-5', 'services', 'DNS Resolution', 'Primary / Secondary', 'core_service', 'green', '', true, 5],
+        // Internal
+        ['demo-int-1', 'internal', 'Mobile PoS', 'https://pos.corp.internal', 'generic_tcp', 'red', 'wifi', true, 1],
+        ['demo-int-2', 'internal', 'Handheld Scanners', 'scanners.corp.internal', 'generic_tcp', 'green', '', true, 2],
+        ['demo-int-3', 'internal', 'IP Cameras', 'rtsp://10.10.40.100', 'generic_tcp', 'green', '', true, 3],
+        ['demo-int-4', 'internal', 'Internal iPerf Test', 'iperf.corp.internal:5201', 'iperf3', 'green', '', true, 4],
+        ['demo-int-5', 'internal', 'status code test', 'http://status.corp.internal', 'generic_tcp', 'green', '', true, 5],
+        // External
+        ['demo-ext-1', 'external', 'Microsoft Office Lo...', 'https://login.microsoftonline.com', 'webserver', 'red', 'wifi', true, 1],
+        ['demo-ext-2', 'external', 'Google Mail', 'https://mail.google.com', 'webserver', 'yellow', 'wifi', true, 2],
+        ['demo-ext-3', 'external', 'Blue Jeans', 'https://bluejeans.com', 'webserver', 'green', '', true, 3],
+        ['demo-ext-4', 'external', 'Dropbox', 'https://dropbox.com', 'webserver', 'green', '', true, 4],
+        ['demo-ext-5', 'external', 'Expired Cert Test', 'https://expired.badssl.com', 'webserver', 'green', '', true, 5],
+        ['demo-ext-6', 'external', 'Github', 'https://github.com', 'webserver', 'green', '', true, 6],
+        ['demo-ext-7', 'external', 'Netflix (Fast.com)', 'https://fast.com', 'webserver', 'green', '', true, 7],
+        ['demo-ext-8', 'external', 'Skype for Business', 'https://skype.com', 'webserver', 'green', '', true, 8],
+        ['demo-ext-9', 'external', 'Slack', 'https://slack.com', 'webserver', 'green', '', true, 9],
+        ['demo-ext-10', 'external', 'Zoom', 'https://zoom.us', 'webserver', 'green', '', true, 10]
+      ];
+
+      for (const it of arubaItems) {
+        await query(`
+          INSERT INTO simple_view_items (id, pillar, name, target, test_type, status, icon_type, is_enabled, order_index)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `, it);
+      }
+      broadcastEvent('simple_view_updated', { action: 'preset', preset: 'aruba' });
+      res.json({ status: 'ok', message: 'Demo preset loaded successfully' });
+    } else {
+      const { seedData } = require('../db/seed');
+      await seedData();
+      broadcastEvent('simple_view_updated', { action: 'preset', preset: 'bayshore' });
+      res.json({ status: 'ok', message: 'Bayshore defaults loaded successfully' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

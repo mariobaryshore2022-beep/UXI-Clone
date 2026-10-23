@@ -107,6 +107,15 @@ const API = {
     return await res.json();
   },
 
+  async setSimpleViewPreset(preset = 'aruba') {
+    const res = await fetch(`${this.baseUrl}/simple-view/preset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ preset })
+    });
+    return await res.json();
+  },
+
   async sendSensorCommand(sensorId, action, params = {}) {
     const res = await fetch(`${this.baseUrl}/sensors/${encodeURIComponent(sensorId)}/command`, {
       method: 'POST',

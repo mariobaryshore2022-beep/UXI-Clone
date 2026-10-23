@@ -1174,8 +1174,58 @@
         </div>
       </div>
       <div class="modal-footer" style="justify-content: space-between;">
-        <button class="btn btn-outline-danger" id="btn-reset-simple-items" onclick="resetSimpleViewDefaults()">Reset to Defaults</button>
-        <button class="btn btn-secondary" onclick="closeSimpleConfigModal()">Close & Apply</button>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-outline-danger" id="btn-reset-simple-items" onclick="resetSimpleViewDefaults()">Reset to Defaults</button>
+          <button class="btn btn-secondary" id="btn-load-aruba-preset" onclick="loadArubaPresetItems()" title="Load authentic demo items (Scarif, Mobile PoS, M365, etc.)">Load Demo Preset</button>
+        </div>
+        <button class="btn btn-primary" onclick="closeSimpleConfigModal()">Close & Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pulse UX Simple View Authentic Hover Detail Card -->
+  <div id="simple-item-hovercard" class="simple-item-hovercard" style="display: none;">
+    <!-- Header -->
+    <div class="shc-header">
+      <div class="shc-title-row">
+        <span class="shc-title" id="shc-title">Item Details</span>
+        <span class="shc-status-badge" id="shc-status-badge">ONLINE</span>
+      </div>
+    </div>
+
+    <!-- Events Last 24H -->
+    <div class="shc-section shc-events-section">
+      <div class="shc-subhead">
+        <span class="shc-label">EVENTS LAST 24H</span>
+        <span class="shc-subval" id="shc-events-total">Total: 0</span>
+      </div>
+      <div class="shc-histogram" id="shc-histogram">
+        <!-- 24 sparkline bars populated dynamically -->
+      </div>
+    </div>
+
+    <!-- Ongoing Issues / Incidents -->
+    <div class="shc-section shc-ongoing-section" id="shc-ongoing-section">
+      <div class="shc-ongoing-header">
+        <span class="shc-ongoing-label">ONGOING</span>
+        <span class="shc-ongoing-bullet" id="shc-ongoing-bullet">•</span>
+        <span class="shc-ongoing-count" id="shc-ongoing-count">0</span>
+      </div>
+      <div class="shc-ongoing-desc" id="shc-ongoing-desc">
+        • All synthetic cycle probes operating within SLA
+      </div>
+      <div class="shc-ongoing-tags" id="shc-ongoing-tags">
+        <!-- Tags -->
+      </div>
+    </div>
+
+    <!-- Latest Values Table -->
+    <div class="shc-section shc-values-section">
+      <div class="shc-subhead">
+        <span class="shc-label">LATEST VALUES</span>
+      </div>
+      <div class="shc-values-grid" id="shc-values-grid">
+        <!-- 2-column key-values populated dynamically -->
       </div>
     </div>
   </div>

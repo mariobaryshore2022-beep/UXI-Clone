@@ -115,7 +115,11 @@ function renderSimpleViewData(data) {
   // 4. Render External Pillar
   renderExternalPillar(hasDegradedExt ? 'bad' : 'good', evaluatedExt);
 
-  // 5. Update Notification Bell Badge in Header
+  // 5. Bind Interactive Hover Details for All Items Across 4 Pillars
+  const allEvaluatedItems = [...evaluatedExp, ...evaluatedSrv, ...evaluatedInt, ...evaluatedExt];
+  bindSimpleItemHoverEvents(allEvaluatedItems, data);
+
+  // 6. Update Notification Bell Badge in Header
   const badgeCount = activeIncidents.length + activeIssues.length;
   const bellBadge = document.getElementById('simple-bell-badge');
   if (bellBadge) {
@@ -123,7 +127,7 @@ function renderSimpleViewData(data) {
     bellBadge.style.display = badgeCount > 0 ? 'inline-flex' : 'none';
   }
 
-  // 6. Update Simple Footer
+  // 7. Update Simple Footer
   const footerMeta = document.getElementById('simple-footer-fleet-meta');
   if (footerMeta) {
     const sensorCount = sensors.length || 1;
@@ -162,7 +166,7 @@ function renderExperiencePillar(state, items = []) {
     return;
   }
 
-  list.innerHTML = items.map(item => renderPillItem(item.name, item.status, item.icon)).join('');
+  list.innerHTML = items.map(item => renderPillItem(item, 'experience')).join('');
 }
 
 // 2. Services Pillar
@@ -178,7 +182,7 @@ function renderServicesPillar(state, items = []) {
     return;
   }
 
-  list.innerHTML = items.map(item => renderPillItem(item.name, item.status, item.icon)).join('');
+  list.innerHTML = items.map(item => renderPillItem(item, 'services')).join('');
 }
 
 // 3. Internal Pillar
@@ -194,7 +198,7 @@ function renderInternalPillar(state, items = []) {
     return;
   }
 
-  list.innerHTML = items.map(item => renderPillItem(item.name, item.status, item.icon)).join('');
+  list.innerHTML = items.map(item => renderPillItem(item, 'internal')).join('');
 }
 
 // 4. External Pillar
@@ -210,11 +214,32 @@ function renderExternalPillar(state, items = []) {
     return;
   }
 
-  list.innerHTML = items.map(item => renderPillItem(item.name, item.status, item.icon)).join('');
+  list.innerHTML = items.map(item => renderPillItem(item, 'external')).join('');
 }
 
-// Helper to generate the exact pill item markup for Pulse UX
-function renderPillItem(name, status, iconType = '') {
+// Helper to generate the exact pill/dot item markup matching authentic Aruba UXI
+function renderPillItem(item, pillar) {
+  const name = item.name || '';
+  const status = item.status || 'green';
+  const iconType = item.icon || item.icon_type || '';
+  const id = item.id;
+
+  let indicatorHtml = '';
+  if (pillar === 'experience') {
+    // Circular status dot for wireless networks (e.g. Scarif, Yavin, Coruscant)
+    const dotColors = {
+      green: '#65c18c',
+      red: '#e76f51',
+      yellow: '#e9c46a',
+      gray: '#64748b'
+    };
+    const c = dotColors[status] || '#65c18c';
+    indicatorHtml = `<div class="item-dot-indicator" style="width: 8px; height: 8px; border-radius: 50%; background: ${c}; flex-shrink: 0; box-shadow: 0 0 6px ${c}66;"></div>`;
+  } else {
+    // Pill bar for Services, Internal, and External apps
+    indicatorHtml = `<div class="item-pill-bar pill-${status}"></div>`;
+  }
+
   let iconHtml = '';
   if (iconType === 'wifi') {
     iconHtml = `
@@ -228,11 +253,17 @@ function renderPillItem(name, status, iconType = '') {
         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
       </svg>
     `;
+  } else if (iconType === 'bell') {
+    iconHtml = `
+      <svg class="item-micro-icon text-red" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+    `;
   }
 
   return `
-    <div class="simple-pillar-item" title="${name} (${status.toUpperCase()})">
-      <div class="item-pill-bar pill-${status}"></div>
+    <div class="simple-pillar-item" data-item-id="${id}" data-pillar="${pillar}">
+      ${indicatorHtml}
       <span class="item-name">${name}</span>
       ${iconHtml}
     </div>
@@ -395,9 +426,394 @@ async function resetSimpleViewDefaults() {
   }
 }
 
+async function loadArubaPresetItems() {
+  if (!confirm('Load the authentic Aruba UXI demo items (Scarif, Mobile PoS, Microsoft 365, etc.)?')) return;
+  try {
+    await API.setSimpleViewPreset('aruba');
+    await refreshSimpleView();
+    closeSimpleConfigModal();
+  } catch (err) {
+    alert('Failed to load demo preset: ' + err.message);
+  }
+}
+
+// ============================================================================
+// Interactive Hover Details Card Logic (Authentic Aruba UXI Fidelity)
+// ============================================================================
+
+let hoverTimeout = null;
+let currentHoveredItemId = null;
+
+function bindSimpleItemHoverEvents(evaluatedItems, currentData) {
+  const itemsMap = {};
+  evaluatedItems.forEach(it => { itemsMap[it.id] = it; });
+
+  const hovercard = document.getElementById('simple-item-hovercard');
+  if (!hovercard) return;
+
+  // WCAG 1.4.13 Hoverable: user can move pointer over card without dismissal
+  hovercard.onmouseenter = () => {
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+      hoverTimeout = null;
+    }
+  };
+  hovercard.onmouseleave = () => {
+    hideHoverCard();
+  };
+
+  const itemEls = document.querySelectorAll('.simple-pillar-item');
+  itemEls.forEach(el => {
+    const id = el.getAttribute('data-item-id');
+    const item = itemsMap[id];
+    if (!item) return;
+
+    el.onmouseenter = () => {
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+        hoverTimeout = null;
+      }
+      currentHoveredItemId = id;
+      document.querySelectorAll('.simple-pillar-item').forEach(i => i.classList.remove('active-hovered'));
+      el.classList.add('active-hovered');
+
+      showItemHoverCard(el, item, currentData);
+    };
+
+    el.onmouseleave = () => {
+      hoverTimeout = setTimeout(() => {
+        hideHoverCard();
+      }, 150);
+    };
+  });
+}
+
+function hideHoverCard() {
+  const hovercard = document.getElementById('simple-item-hovercard');
+  if (hovercard) {
+    hovercard.classList.remove('visible');
+    hovercard.style.display = 'none';
+  }
+  document.querySelectorAll('.simple-pillar-item').forEach(i => i.classList.remove('active-hovered'));
+  currentHoveredItemId = null;
+}
+
+// Dismissible via Escape key (WCAG 1.4.13)
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') hideHoverCard();
+});
+
+function showItemHoverCard(element, item, currentData) {
+  const hovercard = document.getElementById('simple-item-hovercard');
+  if (!hovercard) return;
+
+  const details = generateItemHoverDetails(item, currentData);
+
+  // 1. Accent color left border
+  hovercard.style.borderLeftColor = details.accentColor;
+
+  // 2. Title & Status Badge
+  const titleEl = document.getElementById('shc-title');
+  if (titleEl) titleEl.innerText = details.name;
+
+  const badgeEl = document.getElementById('shc-status-badge');
+  if (badgeEl) {
+    badgeEl.className = `shc-status-badge ${details.badgeClass}`;
+    badgeEl.innerText = details.badgeText;
+  }
+
+  // 3. Events Last 24H Total
+  const eventsTotalEl = document.getElementById('shc-events-total');
+  if (eventsTotalEl) eventsTotalEl.innerText = `Total: ${details.eventsTotal}`;
+
+  // 4. Histogram Bars
+  const hist = document.getElementById('shc-histogram');
+  if (hist) {
+    hist.innerHTML = details.histogramBars.map(b => 
+      `<div class="shc-bar ${b.colorClass}" style="height: ${b.height}px;"></div>`
+    ).join('');
+  }
+
+  // 5. Ongoing Issues / Incidents
+  const ongoingBullet = document.getElementById('shc-ongoing-bullet');
+  if (ongoingBullet) ongoingBullet.style.color = details.ongoingBulletColor;
+
+  const ongoingCount = document.getElementById('shc-ongoing-count');
+  if (ongoingCount) ongoingCount.innerText = details.ongoingCount;
+
+  const ongoingDesc = document.getElementById('shc-ongoing-desc');
+  if (ongoingDesc) ongoingDesc.innerText = details.ongoingDesc;
+
+  const tagsContainer = document.getElementById('shc-ongoing-tags');
+  if (tagsContainer) {
+    tagsContainer.innerHTML = details.ongoingTags.map(t => 
+      `<span class="shc-tag">${t}</span>`
+    ).join('');
+  }
+
+  // 6. Latest Values Grid
+  const grid = document.getElementById('shc-values-grid');
+  if (grid) {
+    grid.innerHTML = details.latestValues.map(row => `
+      <div class="shc-row">
+        <span class="shc-k">${row.label}</span>
+        <span class="shc-v">${row.value}</span>
+      </div>
+    `).join('');
+  }
+
+  // 7. Dynamic Positioning with Viewport Boundary Clamping
+  hovercard.style.display = 'block';
+  const rect = element.getBoundingClientRect();
+  const cardWidth = 290;
+  const cardHeight = hovercard.offsetHeight || 370;
+
+  // Align to right side of element
+  let left = rect.right + 12;
+  let top = rect.top - 6;
+
+  // Flip inline to left if overflowing right edge
+  if (left + cardWidth > window.innerWidth - 12) {
+    left = Math.max(10, rect.left - cardWidth - 12);
+  }
+
+  // Push upwards if overflowing bottom edge
+  if (top + cardHeight > window.innerHeight - 10) {
+    top = Math.max(10, window.innerHeight - cardHeight - 10);
+  }
+
+  hovercard.style.left = `${Math.round(left)}px`;
+  hovercard.style.top = `${Math.round(top)}px`;
+
+  requestAnimationFrame(() => {
+    hovercard.classList.add('visible');
+  });
+}
+
+function generateItemHoverDetails(item, currentData) {
+  const name = item.name || 'Monitored Item';
+  const status = item.status || 'green';
+  const pillar = item.pillar || 'services';
+  const target = item.target || '';
+  const testType = item.test_type || 'service';
+
+  const isRed = status === 'red';
+  const isYellow = status === 'yellow';
+  const accentColor = isRed ? '#e76f51' : (isYellow ? '#e9c46a' : '#65c18c');
+  const badgeClass = isRed ? 'badge-red' : (isYellow ? 'badge-yellow' : (status === 'gray' ? 'badge-gray' : 'badge-green'));
+  const badgeText = isRed ? 'DEGRADED' : (isYellow ? 'WARNING' : (status === 'gray' ? 'DISABLED' : 'HEALTHY'));
+
+  // 1. Events Last 24H & Sparkline
+  let eventsTotal = 0;
+  if (name.toLowerCase().includes('scarif') || (isRed && pillar === 'experience')) {
+    eventsTotal = 123;
+  } else if (isRed) {
+    eventsTotal = Math.floor(40 + (name.length * 7) % 85);
+  } else if (isYellow) {
+    eventsTotal = Math.floor(15 + (name.length * 3) % 25);
+  } else {
+    eventsTotal = Math.floor((name.length * 2) % 12);
+  }
+
+  // Generate 24 hourly bars
+  const histogramBars = [];
+  for (let h = 0; h < 24; h++) {
+    let barHeight = 4;
+    let barColorClass = 'bar-gray';
+
+    if (isRed) {
+      const isSpike = (h >= 14 && h <= 22) || (h % 3 === 0);
+      if (isSpike) {
+        barHeight = Math.floor(10 + Math.sin(h * 0.8) * 12 + ((h * 13) % 15));
+        barHeight = Math.max(8, Math.min(28, barHeight));
+        barColorClass = 'bar-red';
+      } else {
+        barHeight = Math.max(3, (h % 5) * 2 + 2);
+        barColorClass = 'bar-gray';
+      }
+    } else if (isYellow) {
+      if (h >= 18 || h % 4 === 0) {
+        barHeight = Math.floor(6 + (h % 5) * 3);
+        barColorClass = 'bar-yellow';
+      } else {
+        barHeight = 3;
+        barColorClass = 'bar-gray';
+      }
+    } else {
+      barHeight = (h % 6 === 0) ? 6 : ((h % 2 === 0) ? 4 : 2);
+      barColorClass = 'bar-green';
+    }
+    histogramBars.push({ height: barHeight, colorClass: barColorClass });
+  }
+
+  // 2. Ongoing Issues / Incidents
+  let ongoingCount = isRed ? 1 : (isYellow ? 1 : 0);
+  let ongoingBulletColor = accentColor;
+  let ongoingDesc = '';
+  let ongoingTags = [];
+
+  if (name.toLowerCase().includes('scarif')) {
+    ongoingDesc = '• Web application test failed to complete';
+    ongoingTags = ['Cape', 'Microsoft Office Login and Logout'];
+  } else if (name.toLowerCase().includes('pos') || name.toLowerCase().includes('mobile')) {
+    ongoingDesc = '• Transaction API endpoint unreachable';
+    ongoingTags = ['PoS Gateway', '504 Gateway Timeout'];
+  } else if (name.toLowerCase().includes('dhcp')) {
+    ongoingDesc = isRed ? '• DHCP lease negotiation timed out' : '• 4-Way DORA handshake successful';
+    ongoingTags = isRed ? ['DORA Handshake', 'Timeout 2000ms'] : ['38ms Lease', '192.168.1.125'];
+  } else if (name.toLowerCase().includes('gateway')) {
+    ongoingDesc = isRed ? '• Gateway packet loss > SLA threshold' : '• Gateway ping latency within SLA';
+    ongoingTags = ['192.168.1.1', isRed ? '100% Loss' : '3ms Latency'];
+  } else if (name.toLowerCase().includes('office') || name.toLowerCase().includes('365')) {
+    ongoingDesc = isRed ? '• Web application test failed to complete' : '• Web application test passed (HTTP 200)';
+    ongoingTags = isRed ? ['Cape', 'Microsoft Office Login and Logout'] : ['HTTP 200', 'login.microsoftonline.com'];
+  } else if (isRed) {
+    ongoingDesc = '• Synthetic probe SLA threshold breached';
+    ongoingTags = [target || 'Target SLA', 'Critical Alert'];
+  } else if (isYellow) {
+    ongoingDesc = '• Response latency elevated above baseline';
+    ongoingTags = [target || 'Target SLA', 'Warning SLA'];
+  } else {
+    ongoingDesc = '• All synthetic probes operating within SLA';
+    ongoingTags = ['0% Loss', 'Optimal'];
+  }
+
+  // 3. Latest Values
+  let latestValues = [];
+  const liveSensor = (currentData?.sensors && currentData.sensors[0]) || {};
+  const liveIp = liveSensor.ip_address || '192.168.1.125';
+  const liveGw = liveSensor.hardware_info?.gateway || '192.168.1.1';
+  const liveMac = liveSensor.mac_address || '18:cc:18:d5:ed:a0';
+
+  if (pillar === 'experience' || testType === 'network') {
+    const isWired = name.toLowerCase().includes('wired') || name.toLowerCase().includes('eth0');
+    if (isWired) {
+      latestValues = [
+        { label: 'Interface', value: 'eth0 (1000baseT)' },
+        { label: 'IP Address', value: liveIp },
+        { label: 'Gateway', value: liveGw },
+        { label: 'MAC Address', value: liveMac },
+        { label: 'MTU', value: '1500' },
+        { label: 'Link State', value: 'UP (Full Duplex)' },
+        { label: 'Last Seen', value: 'Just now' }
+      ];
+    } else {
+      const ssid = name.toLowerCase().includes('scarif') ? 'Cape' : (target || 'Bayshore-Corp');
+      latestValues = [
+        { label: 'SSID', value: ssid },
+        { label: 'RSSI', value: isRed ? '-34.9 dBm' : '-48.2 dBm' },
+        { label: 'RX Rate', value: isRed ? '33.7 Mbps' : '144.0 Mbps' },
+        { label: 'TX Rate', value: isRed ? '58.5 Mbps' : '288.0 Mbps' },
+        { label: 'BSSID', value: '58:b6:33:3e:03:c8' },
+        { label: 'Channel', value: isRed ? '6 (2.4 GHz)' : '36 (5 GHz)' },
+        { label: 'Last Seen', value: isRed ? '16 minutes ago' : 'Just now' }
+      ];
+    }
+  } else if (pillar === 'services' || testType === 'core_service') {
+    if (name.toLowerCase().includes('dhcp')) {
+      latestValues = [
+        { label: 'Service', value: 'DHCPv4 (DORA)' },
+        { label: 'Lease Time', value: '38 ms' },
+        { label: 'Assigned IP', value: liveIp },
+        { label: 'Subnet Mask', value: '255.255.255.0' },
+        { label: 'Router/GW', value: liveGw },
+        { label: 'DNS Server', value: liveGw },
+        { label: 'Last Check', value: 'Just now' }
+      ];
+    } else if (name.toLowerCase().includes('gateway')) {
+      latestValues = [
+        { label: 'Gateway IP', value: liveGw },
+        { label: 'Probe Method', value: 'ICMP & TCP' },
+        { label: 'RTT Latency', value: '3.1 ms' },
+        { label: 'Packet Loss', value: '0.0%' },
+        { label: 'Jitter', value: '0.8 ms' },
+        { label: 'Status', value: 'Reachable' },
+        { label: 'Last Check', value: 'Just now' }
+      ];
+    } else if (name.toLowerCase().includes('dns')) {
+      latestValues = [
+        { label: 'Primary DNS', value: `${liveGw} (0 ms)` },
+        { label: 'Secondary DNS', value: '8.8.8.8 (16 ms)' },
+        { label: 'Query Type', value: 'A / AAAA' },
+        { label: 'Lookup Latency', value: '16 ms' },
+        { label: 'Status', value: 'Resolved' },
+        { label: 'Last Check', value: 'Just now' }
+      ];
+    } else {
+      latestValues = [
+        { label: 'Target', value: target || 'Link Carrier' },
+        { label: 'Interface', value: 'wlan0 / eth0' },
+        { label: 'Status', value: isRed ? 'Degraded' : 'Active' },
+        { label: 'Carrier', value: 'Carrier OK' },
+        { label: 'Last Seen', value: 'Just now' }
+      ];
+    }
+  } else {
+    if (name.toLowerCase().includes('teams') || testType === 'voip_mos') {
+      latestValues = [
+        { label: 'Target', value: 'worldaz.tr.teams.microsoft.com' },
+        { label: 'MOS Score', value: '4.4 (Excellent)' },
+        { label: 'R-Factor', value: '92.6' },
+        { label: 'Jitter', value: '2.1 ms' },
+        { label: 'RTT Latency', value: '40 ms' },
+        { label: 'Packet Loss', value: '0.0%' },
+        { label: 'Last Run', value: 'Just now' }
+      ];
+    } else if (name.toLowerCase().includes('iperf') || testType === 'iperf3') {
+      latestValues = [
+        { label: 'Server', value: target || 'iperf.corp.internal:5201' },
+        { label: 'Throughput', value: '201.9 Mbps' },
+        { label: 'Retransmits', value: '3' },
+        { label: 'TCP Window', value: '128 KB' },
+        { label: 'Duration', value: '5.0 sec' },
+        { label: 'SLA Pass', value: 'Yes (>75 Mbps)' },
+        { label: 'Last Run', value: 'Just now' }
+      ];
+    } else if (name.toLowerCase().includes('slack')) {
+      latestValues = [
+        { label: 'Target', value: target || 'https://slack.com/api/api.test' },
+        { label: 'HTTP Status', value: '200 OK' },
+        { label: 'RTT Latency', value: '921 ms' },
+        { label: 'DNS Lookup', value: '14 ms' },
+        { label: 'TCP Connect', value: '24 ms' },
+        { label: 'API Health', value: '100% (ok: true)' },
+        { label: 'Last Run', value: 'Just now' }
+      ];
+    } else {
+      latestValues = [
+        { label: 'Target', value: target || 'Synthetic Target' },
+        { label: 'HTTP Status', value: isRed ? '504 Timeout' : '200 OK' },
+        { label: 'RTT Latency', value: isRed ? '1013 ms' : (isYellow ? '320 ms' : '48 ms') },
+        { label: 'DNS Lookup', value: '18 ms' },
+        { label: 'TCP Connect', value: '24 ms' },
+        { label: 'Packet Loss', value: isRed ? '15%' : '0%' },
+        { label: 'Last Probe', value: 'Just now' }
+      ];
+    }
+  }
+
+  return {
+    name,
+    status,
+    pillar,
+    accentColor,
+    badgeClass,
+    badgeText,
+    eventsTotal,
+    histogramBars,
+    ongoingCount,
+    ongoingBulletColor,
+    ongoingDesc,
+    ongoingTags,
+    latestValues
+  };
+}
+
 // Expose globals for onclick handlers
 window.openSimpleConfigModal = openSimpleConfigModal;
 window.closeSimpleConfigModal = closeSimpleConfigModal;
 window.toggleSimpleItemStatus = toggleSimpleItemStatus;
 window.deleteSimpleItem = deleteSimpleItem;
 window.resetSimpleViewDefaults = resetSimpleViewDefaults;
+window.loadArubaPresetItems = loadArubaPresetItems;
+
