@@ -11,22 +11,50 @@ const { correlateIncidents } = require('../engine/incidentEngine');
 // 1. Overview & Experience Score
 router.get('/overview', async (req, res) => {
   try {
-    const sensorsRes = await query('SELECT count(*) as total, count(*) FILTER (WHERE status = \'online\' OR status = \'testing\') as online FROM sensors');
-    const incidentsRes = await query('SELECT count(*) as count FROM incidents WHERE status = \'open\' OR status = \'investigating\'');
-    const issuesRes = await query('SELECT count(*) as count FROM issues WHERE status = \'active\'');
-    const testsRes = await query('SELECT count(*) as total, count(*) FILTER (WHERE success = true) as successful FROM test_results WHERE timestamp >= NOW() - INTERVAL \'1 hour\'');
-    
-    // Average MOS over last hour
-    const mosRes = await query(`
-      SELECT AVG((metrics->>'mos')::float) as avg_mos 
-      FROM test_results 
-      WHERE metrics->>'mos' IS NOT NULL AND timestamp >= NOW() - INTERVAL \'1 hour\'
-    `);
+    const sensorId = req.query.sensor_id;
+    let sensorsRes, incidentsRes, issuesRes, testsRes, mosRes;
 
-    // Calculate Pulse UX Global Experience Score (0 - 100)
-    const activeIncidents = parseInt(incidentsRes.rows[0].count, 10);
-    const activeIssues = parseInt(issuesRes.rows[0].count, 10);
-    const avgMos = parseFloat(mosRes.rows[0].avg_mos) || 4.25;
+    if (sensorId && sensorId !== 'all') {
+      sensorsRes = await query(`
+        SELECT count(*) as total, count(*) FILTER (WHERE status = 'online' OR status = 'testing') as online 
+        FROM sensors WHERE id = $1
+      `, [sensorId]);
+      incidentsRes = await query(`
+        SELECT count(*) as count 
+        FROM incidents 
+        WHERE (status = 'open' OR status = 'investigating') AND (affected_sensors::text ILIKE $1 OR impact_scope ILIKE $1)
+      `, [`%${sensorId}%`]);
+      issuesRes = await query(`
+        SELECT count(*) as count 
+        FROM issues 
+        WHERE status = 'active' AND sensor_id = $1
+      `, [sensorId]);
+      testsRes = await query(`
+        SELECT count(*) as total, count(*) FILTER (WHERE success = true) as successful 
+        FROM test_results 
+        WHERE timestamp >= NOW() - INTERVAL '1 hour' AND sensor_id = $1
+      `, [sensorId]);
+      mosRes = await query(`
+        SELECT AVG((metrics->>'mos')::float) as avg_mos 
+        FROM test_results 
+        WHERE metrics->>'mos' IS NOT NULL AND timestamp >= NOW() - INTERVAL '1 hour' AND sensor_id = $1
+      `, [sensorId]);
+    } else {
+      sensorsRes = await query('SELECT count(*) as total, count(*) FILTER (WHERE status = \'online\' OR status = \'testing\') as online FROM sensors');
+      incidentsRes = await query('SELECT count(*) as count FROM incidents WHERE status = \'open\' OR status = \'investigating\'');
+      issuesRes = await query('SELECT count(*) as count FROM issues WHERE status = \'active\'');
+      testsRes = await query('SELECT count(*) as total, count(*) FILTER (WHERE success = true) as successful FROM test_results WHERE timestamp >= NOW() - INTERVAL \'1 hour\'');
+      mosRes = await query(`
+        SELECT AVG((metrics->>'mos')::float) as avg_mos 
+        FROM test_results 
+        WHERE metrics->>'mos' IS NOT NULL AND timestamp >= NOW() - INTERVAL '1 hour'
+      `);
+    }
+
+    // Calculate Pulse UX Experience Score (0 - 100)
+    const activeIncidents = parseInt(incidentsRes.rows[0]?.count || 0, 10);
+    const activeIssues = parseInt(issuesRes.rows[0]?.count || 0, 10);
+    const avgMos = parseFloat(mosRes.rows[0]?.avg_mos) || 4.25;
 
     let experienceScore = Math.round((avgMos / 5.0) * 100);
     if (activeIncidents > 0) experienceScore -= Math.min(30, activeIncidents * 15);
@@ -34,11 +62,12 @@ router.get('/overview', async (req, res) => {
     experienceScore = Math.max(10, Math.min(100, experienceScore));
 
     res.json({
+      sensorId: sensorId || 'all',
       experienceScore,
       rating: experienceScore >= 90 ? 'Optimal' : experienceScore >= 75 ? 'Good' : experienceScore >= 60 ? 'Degraded' : 'Poor',
       sensors: {
-        total: parseInt(sensorsRes.rows[0].total, 10),
-        online: parseInt(sensorsRes.rows[0].online, 10)
+        total: parseInt(sensorsRes.rows[0]?.total || 1, 10),
+        online: parseInt(sensorsRes.rows[0]?.online || 1, 10)
       },
       incidents: {
         activeCount: activeIncidents
@@ -47,9 +76,9 @@ router.get('/overview', async (req, res) => {
         activeCount: activeIssues
       },
       testsLastHour: {
-        total: parseInt(testsRes.rows[0].total, 10),
-        successful: parseInt(testsRes.rows[0].successful, 10),
-        successRate: testsRes.rows[0].total > 0 
+        total: parseInt(testsRes.rows[0]?.total || 0, 10),
+        successful: parseInt(testsRes.rows[0]?.successful || 0, 10),
+        successRate: testsRes.rows[0]?.total > 0 
           ? Math.round((parseInt(testsRes.rows[0].successful, 10) / parseInt(testsRes.rows[0].total, 10)) * 100) 
           : 100
       },
@@ -537,13 +566,14 @@ router.post('/telemetry/wifi', async (req, res) => {
 router.get('/telemetry/wifi', async (req, res) => {
   try {
     const sensorId = req.query.sensor_id;
+    const shouldFilter = sensorId && sensorId !== 'all';
     let queryText = `
       SELECT DISTINCT ON (bssid) * 
       FROM wifi_telemetry 
-      ${sensorId ? 'WHERE sensor_id = $1' : ''}
+      ${shouldFilter ? 'WHERE sensor_id = $1' : ''}
       ORDER BY bssid, timestamp DESC
     `;
-    const params = sensorId ? [sensorId] : [];
+    const params = shouldFilter ? [sensorId] : [];
     const results = await query(queryText, params);
     res.json(results.rows);
   } catch (err) {
@@ -554,13 +584,19 @@ router.get('/telemetry/wifi', async (req, res) => {
 // 7. Issues & Incidents
 router.get('/issues', async (req, res) => {
   try {
-    const results = await query(`
+    const sensorId = req.query.sensor_id;
+    let sql = `
       SELECT i.*, s.name as sensor_name 
       FROM issues i 
       LEFT JOIN sensors s ON i.sensor_id = s.id 
-      ORDER BY i.created_at DESC 
-      LIMIT 100
-    `);
+    `;
+    const params = [];
+    if (sensorId && sensorId !== 'all') {
+      sql += ` WHERE i.sensor_id = $1 `;
+      params.push(sensorId);
+    }
+    sql += ` ORDER BY i.created_at DESC LIMIT 100`;
+    const results = await query(sql, params);
     res.json(results.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -569,11 +605,15 @@ router.get('/issues', async (req, res) => {
 
 router.get('/incidents', async (req, res) => {
   try {
-    const results = await query(`
-      SELECT * FROM incidents 
-      ORDER BY created_at DESC 
-      LIMIT 50
-    `);
+    const sensorId = req.query.sensor_id;
+    let sql = `SELECT * FROM incidents `;
+    const params = [];
+    if (sensorId && sensorId !== 'all') {
+      sql += ` WHERE affected_sensors::text ILIKE $1 OR impact_scope ILIKE $1 `;
+      params.push(`%${sensorId}%`);
+    }
+    sql += ` ORDER BY created_at DESC LIMIT 50`;
+    const results = await query(sql, params);
     res.json(results.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -613,13 +653,19 @@ router.post('/triage', async (req, res) => {
 
 router.get('/triage', async (req, res) => {
   try {
-    const results = await query(`
+    const sensorId = req.query.sensor_id;
+    let sql = `
       SELECT t.*, s.name as sensor_name 
       FROM triage_reports t 
       LEFT JOIN sensors s ON t.sensor_id = s.id 
-      ORDER BY t.timestamp DESC 
-      LIMIT 20
-    `);
+    `;
+    const params = [];
+    if (sensorId && sensorId !== 'all') {
+      sql += ` WHERE t.sensor_id = $1 `;
+      params.push(sensorId);
+    }
+    sql += ` ORDER BY t.timestamp DESC LIMIT 20`;
+    const results = await query(sql, params);
     res.json(results.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -7,6 +7,8 @@
 let simpleViewInitialized = false;
 let currentConfigPillar = 'experience';
 let cachedSimpleItems = [];
+let cachedSensorsList = [];
+window.currentSelectedSensorId = window.currentSelectedSensorId || 'all';
 
 function initSimpleView() {
   if (simpleViewInitialized) {
@@ -18,19 +20,26 @@ function initSimpleView() {
   // Initialize modal event listeners
   initSimpleConfigModalEvents();
 
+  // Initialize sensor dropdown outside click listener
+  initSensorDropdownDismissListener();
+
   refreshSimpleView();
 }
 
 async function refreshSimpleView() {
   try {
+    const selectedId = window.currentSelectedSensorId || 'all';
     const [overview, tests, incidents, issues, sensors, itemsData] = await Promise.all([
-      API.getOverview(),
+      API.getOverview(selectedId),
       API.getTests(),
-      API.getIncidents(),
-      API.getIssues(),
+      API.getIncidents(selectedId),
+      API.getIssues(selectedId),
       API.getSensors(),
       API.getSimpleViewItems().catch(() => ({ items: [], pillars: {} }))
     ]);
+
+    cachedSensorsList = sensors || [];
+    renderSensorDropdowns(cachedSensorsList);
 
     cachedSimpleItems = itemsData.items || [];
 
@@ -130,9 +139,19 @@ function renderSimpleViewData(data) {
   // 7. Update Simple Footer
   const footerMeta = document.getElementById('simple-footer-fleet-meta');
   if (footerMeta) {
-    const sensorCount = sensors.length || 1;
-    const sensorName = sensors[0]?.name || 'sensor-kali-arm64';
-    footerMeta.innerText = `Pulse UX Fleet • ${sensorCount} Sensor (${sensorName}) • Bayshore HealthCare`;
+    const selectedId = window.currentSelectedSensorId || 'all';
+    if (selectedId !== 'all') {
+      const activeSensor = sensors.find(s => s.id === selectedId);
+      if (activeSensor) {
+        const iface = activeSensor.interface || (activeSensor.name.includes('laptop') || activeSensor.name.includes('wifi') ? 'wlan0' : 'eth0');
+        footerMeta.innerText = `Active Sensor: ${activeSensor.name} (${activeSensor.ip_address || 'DHCP'}) • Interface: ${iface} • Status: ${activeSensor.status.toUpperCase()} • Bayshore HealthCare`;
+      } else {
+        footerMeta.innerText = `Active Sensor: ${selectedId} • Bayshore HealthCare`;
+      }
+    } else {
+      const sensorCount = sensors.length || 1;
+      footerMeta.innerText = `Pulse UX Fleet • ${sensorCount} Sensors Online • Bayshore HealthCare`;
+    }
   }
 }
 
@@ -1326,4 +1345,154 @@ function generatePillarSummaryData(pillar, currentData) {
     }
   };
 }
+
+// =====================================================================
+// Sensor Selector Dropdown Controllers (Simple View & Global Header)
+// =====================================================================
+
+function toggleSimpleSensorDropdown(e) {
+  if (e && e.stopPropagation) e.stopPropagation();
+  const menu = document.getElementById('simple-sensor-dropdown-menu');
+  const headerMenu = document.getElementById('header-sensor-dropdown-menu');
+  if (headerMenu) headerMenu.style.display = 'none';
+  if (menu) {
+    const isHidden = menu.style.display === 'none' || menu.style.display === '';
+    menu.style.display = isHidden ? 'block' : 'none';
+  }
+}
+
+function toggleHeaderSensorDropdown(e) {
+  if (e && e.stopPropagation) e.stopPropagation();
+  const menu = document.getElementById('header-sensor-dropdown-menu');
+  const simpleMenu = document.getElementById('simple-sensor-dropdown-menu');
+  if (simpleMenu) simpleMenu.style.display = 'none';
+  if (menu) {
+    const isHidden = menu.style.display === 'none' || menu.style.display === '';
+    menu.style.display = isHidden ? 'block' : 'none';
+  }
+}
+
+function selectSensorFilter(sensorId) {
+  window.currentSelectedSensorId = sensorId;
+
+  // Dismiss open menus
+  const sMenu = document.getElementById('simple-sensor-dropdown-menu');
+  if (sMenu) sMenu.style.display = 'none';
+  const hMenu = document.getElementById('header-sensor-dropdown-menu');
+  if (hMenu) hMenu.style.display = 'none';
+
+  // Re-render dropdowns to update selection styles and labels
+  if (cachedSensorsList && cachedSensorsList.length > 0) {
+    renderSensorDropdowns(cachedSensorsList);
+  }
+
+  // Dynamically refresh all connected tabs and views
+  refreshSimpleView();
+  if (typeof refreshOverview === 'function') refreshOverview();
+  if (typeof loadIncidentsAndIssues === 'function') loadIncidentsAndIssues();
+  if (typeof loadWifiEnvironment === 'function') loadWifiEnvironment();
+  if (typeof loadTriageReports === 'function') loadTriageReports();
+
+  // Highlight sensor card if on Sensors & Cycles tab
+  highlightSelectedSensorCard(sensorId);
+}
+
+function renderSensorDropdowns(sensors) {
+  cachedSensorsList = sensors || [];
+  const currentId = window.currentSelectedSensorId || 'all';
+
+  const simpleMenu = document.getElementById('simple-sensor-dropdown-menu');
+  const headerMenu = document.getElementById('header-sensor-dropdown-menu');
+
+  const selectedSensor = sensors.find(s => s.id === currentId);
+  const activeLabel = currentId === 'all' ? 'All Sensors (Fleet)' : (selectedSensor?.name || currentId);
+  const isOnline = currentId === 'all' ? true : (selectedSensor?.status === 'online');
+
+  // Update label text elements
+  const simpleLabelEl = document.getElementById('simple-selected-sensor-label');
+  if (simpleLabelEl) simpleLabelEl.innerText = activeLabel;
+  const headerLabelEl = document.getElementById('header-selected-sensor-label');
+  if (headerLabelEl) headerLabelEl.innerText = activeLabel;
+
+  // Update status dot indicators
+  const simpleDot = document.getElementById('simple-sensor-dropdown-dot');
+  if (simpleDot) {
+    simpleDot.className = `sensor-dropdown-dot ${isOnline ? 'dot-green' : 'dot-red'}`;
+  }
+  const headerDot = document.getElementById('header-sensor-dropdown-dot');
+  if (headerDot) {
+    headerDot.className = `sensor-dropdown-dot ${isOnline ? 'dot-green' : 'dot-red'}`;
+  }
+
+  // Build items list HTML
+  let itemsHtml = `
+    <div class="sensor-dropdown-item ${currentId === 'all' ? 'active' : ''}" onclick="selectSensorFilter('all')">
+      <span class="sensor-dropdown-dot dot-green"></span>
+      <div class="sensor-dropdown-item-info">
+        <div class="sensor-dropdown-item-name">All Sensors (Fleet)</div>
+        <div class="sensor-dropdown-item-meta">${sensors.length} total active sensors</div>
+      </div>
+    </div>
+  `;
+
+  sensors.forEach(s => {
+    const isAct = currentId === s.id;
+    const dotCls = s.status === 'online' ? 'dot-green' : 'dot-red';
+    const iface = s.interface || (s.name.includes('laptop') || s.name.includes('wifi') ? 'wlan0' : 'eth0');
+    itemsHtml += `
+      <div class="sensor-dropdown-item ${isAct ? 'active' : ''}" onclick="selectSensorFilter('${s.id}')">
+        <span class="sensor-dropdown-dot ${dotCls}"></span>
+        <div class="sensor-dropdown-item-info">
+          <div class="sensor-dropdown-item-name">${s.name}</div>
+          <div class="sensor-dropdown-item-meta">${s.ip_address || 'DHCP'} • ${iface} • ${s.status}</div>
+        </div>
+      </div>
+    `;
+  });
+
+  if (simpleMenu) simpleMenu.innerHTML = itemsHtml;
+  if (headerMenu) headerMenu.innerHTML = itemsHtml;
+}
+
+function highlightSelectedSensorCard(sensorId) {
+  const cards = document.querySelectorAll('.sensor-card');
+  cards.forEach(c => {
+    if (sensorId === 'all') {
+      c.style.borderColor = '';
+      c.style.boxShadow = '';
+    } else if (c.id === `card-sensor-${sensorId}`) {
+      c.style.borderColor = '#65c18c';
+      c.style.boxShadow = '0 0 16px rgba(101, 193, 140, 0.35)';
+    } else {
+      c.style.borderColor = '';
+      c.style.boxShadow = '';
+    }
+  });
+}
+
+let sensorDropdownDismissInitialized = false;
+function initSensorDropdownDismissListener() {
+  if (sensorDropdownDismissInitialized) return;
+  sensorDropdownDismissInitialized = true;
+
+  document.addEventListener('click', (e) => {
+    const simpleWrap = document.getElementById('simple-sensor-selector-wrapper');
+    const headerWrap = document.getElementById('header-sensor-selector-wrapper');
+    if (simpleWrap && !simpleWrap.contains(e.target)) {
+      const m = document.getElementById('simple-sensor-dropdown-menu');
+      if (m) m.style.display = 'none';
+    }
+    if (headerWrap && !headerWrap.contains(e.target)) {
+      const m = document.getElementById('header-sensor-dropdown-menu');
+      if (m) m.style.display = 'none';
+    }
+  });
+}
+
+// Expose handlers globally
+window.toggleSimpleSensorDropdown = toggleSimpleSensorDropdown;
+window.toggleHeaderSensorDropdown = toggleHeaderSensorDropdown;
+window.selectSensorFilter = selectSensorFilter;
+window.renderSensorDropdowns = renderSensorDropdowns;
+
 

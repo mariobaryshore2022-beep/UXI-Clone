@@ -73,6 +73,18 @@
     </div>
 
     <div class="header-right">
+      <!-- Global Sensor Selector Dropdown -->
+      <div class="sensor-selector-dropdown-wrapper" id="header-sensor-selector-wrapper">
+        <button class="btn-sensor-dropdown" id="btn-header-sensor-dropdown" onclick="toggleHeaderSensorDropdown()" title="Select sensor to filter all dashboard views">
+          <span class="sensor-dropdown-dot dot-green" id="header-sensor-dropdown-dot"></span>
+          <span id="header-selected-sensor-label">All Sensors (Fleet)</span>
+          <span class="dropdown-caret">▾</span>
+        </button>
+        <div class="sensor-dropdown-menu" id="header-sensor-dropdown-menu" style="display: none;">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
       <!-- Search, Filter & Notification Bell Icons -->
       <div style="display: flex; align-items: center; gap: 0.25rem;">
         <div class="header-action-icon" title="Search"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
@@ -106,17 +118,69 @@
     <!-- ================================================================= -->
     <section class="tab-pane active" id="tab-simple">
       <div class="pulse-simple-dashboard">
-        <!-- Simple View Header Bar with Config Button -->
+        <!-- Simple View Header Bar with Authentic Switchers & Sensor Dropdown -->
         <div class="simple-top-bar">
-          <div class="simple-view-heading">
-            <h2 class="simple-title">DIGITAL EXPERIENCE MONITORING</h2>
-            <span class="simple-subtitle">Autonomous 4-Pillar Synthetic Telemetry Pipeline</span>
+          <div class="simple-top-left">
+            <!-- Authentic Nav Switcher Circles -->
+            <div class="simple-view-switchers">
+              <button class="switcher-circle active" title="Experience Simple View (Current)" onclick="window.activateTab ? window.activateTab('tab-simple') : null">
+                <svg viewBox="0 0 100 100" width="18" height="18" fill="none" stroke="currentColor" stroke-width="8">
+                  <circle cx="50" cy="50" r="42" />
+                  <circle cx="36" cy="38" r="5" fill="currentColor" stroke="none" />
+                  <circle cx="64" cy="38" r="5" fill="currentColor" stroke="none" />
+                  <path d="M 32 54 Q 50 74 68 54" stroke-linecap="round" />
+                </svg>
+              </button>
+              <button class="switcher-circle" title="Fleet Sensors Map" onclick="window.activateTab ? window.activateTab('tab-map') : null">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="2" y1="12" x2="22" y2="12"/>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
+              </button>
+              <button class="switcher-circle" title="Sensors Fleet Table" onclick="window.activateTab ? window.activateTab('tab-sensors') : null">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="7" height="7"/>
+                  <rect x="14" y="3" width="7" height="7"/>
+                  <rect x="14" y="14" width="7" height="7"/>
+                  <rect x="3" y="14" width="7" height="7"/>
+                </svg>
+              </button>
+              <button class="switcher-circle" title="Wi-Fi RF Environment" onclick="window.activateTab ? window.activateTab('tab-wifi') : null">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="18" cy="5" r="3"/>
+                  <circle cx="6" cy="12" r="3"/>
+                  <circle cx="18" cy="19" r="3"/>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Sensor Selector Dropdown -->
+            <div class="sensor-selector-dropdown-wrapper" id="simple-sensor-selector-wrapper">
+              <button class="btn-sensor-dropdown" id="btn-simple-sensor-dropdown" onclick="toggleSimpleSensorDropdown()" title="Select sensor to view related experience and telemetry">
+                <span class="sensor-dropdown-dot dot-green" id="simple-sensor-dropdown-dot"></span>
+                <span id="simple-selected-sensor-label">All Sensors (Fleet)</span>
+                <span class="dropdown-caret">▾</span>
+              </button>
+              <div class="sensor-dropdown-menu" id="simple-sensor-dropdown-menu" style="display: none;">
+                <!-- Populated dynamically via sensors list -->
+              </div>
+            </div>
           </div>
-          <div class="simple-top-actions">
-            <button id="btn-open-simple-config" class="btn-config-simple" onclick="openSimpleConfigModal()" title="Configure Monitored Items across 4 Pillars">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-              Configure Pillars
-            </button>
+
+          <div class="simple-top-right">
+            <div class="simple-brand-tag">
+              <span class="brand-uxi-title">UXI</span>
+              <span class="brand-uxi-sub">User Experience Insight</span>
+            </div>
+            <div class="simple-top-actions">
+              <button id="btn-open-simple-config" class="btn-config-simple" onclick="openSimpleConfigModal()" title="Configure Monitored Items across 4 Pillars">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                Configure Pillars
+              </button>
+            </div>
           </div>
         </div>
 

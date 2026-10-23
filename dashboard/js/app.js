@@ -188,7 +188,8 @@ async function refreshAllData() {
 
 async function refreshOverview() {
   try {
-    const overview = await API.getOverview();
+    const selectedId = window.currentSelectedSensorId || 'all';
+    const overview = await API.getOverview(selectedId);
 
     // Render Donut
     renderExperienceDonut('experience-donut-container', overview.experienceScore);
@@ -233,9 +234,10 @@ async function refreshOverview() {
 
 async function loadIncidentsAndIssues() {
   try {
+    const selectedId = window.currentSelectedSensorId || 'all';
     const [incidents, issues] = await Promise.all([
-      API.getIncidents(),
-      API.getIssues()
+      API.getIncidents(selectedId),
+      API.getIssues(selectedId)
     ]);
 
     const container = document.getElementById('incidents-list-container');
@@ -369,7 +371,8 @@ async function loadSensors() {
 
 async function loadWifiEnvironment() {
   try {
-    const apList = await API.getWifiTelemetry();
+    const selectedId = window.currentSelectedSensorId || 'all';
+    const apList = await API.getWifiTelemetry(selectedId);
 
     // Render RF spectrum visualizer
     renderWifiSpectrum('spectrum-chart-container', apList);
@@ -381,7 +384,7 @@ async function loadWifiEnvironment() {
         tbody.innerHTML = `
           <tr>
             <td colspan="11" style="text-align: center; padding: 2.5rem; color: var(--text-muted); font-size: 0.85rem;">
-              No wireless access points detected. Active sensor (<strong>Kali-Linux-Sensor</strong>) is currently operating over Wired Ethernet (eth0).
+              No wireless access points detected for this sensor.
             </td>
           </tr>
         `;
@@ -440,7 +443,8 @@ async function loadWifiEnvironment() {
 
 async function loadTriageReports() {
   try {
-    const reports = await API.getTriageReports();
+    const selectedId = window.currentSelectedSensorId || 'all';
+    const reports = await API.getTriageReports(selectedId);
     renderTriageList(reports, (selected) => {
       displayTriageDetails(selected);
     });

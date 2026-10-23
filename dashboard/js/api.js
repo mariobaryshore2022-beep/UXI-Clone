@@ -4,8 +4,9 @@
 const API = {
   baseUrl: '/api',
 
-  async getOverview() {
-    const res = await fetch(`${this.baseUrl}/overview`);
+  async getOverview(sensorId = null) {
+    const url = sensorId && sensorId !== 'all' ? `${this.baseUrl}/overview?sensor_id=${encodeURIComponent(sensorId)}` : `${this.baseUrl}/overview`;
+    const res = await fetch(url);
     return await res.json();
   },
 
@@ -30,23 +31,26 @@ const API = {
   },
 
   async getWifiTelemetry(sensorId = null) {
-    const url = sensorId ? `${this.baseUrl}/telemetry/wifi?sensor_id=${sensorId}` : `${this.baseUrl}/telemetry/wifi`;
+    const url = sensorId && sensorId !== 'all' ? `${this.baseUrl}/telemetry/wifi?sensor_id=${encodeURIComponent(sensorId)}` : `${this.baseUrl}/telemetry/wifi`;
     const res = await fetch(url);
     return await res.json();
   },
 
-  async getIssues() {
-    const res = await fetch(`${this.baseUrl}/issues`);
+  async getIssues(sensorId = null) {
+    const url = sensorId && sensorId !== 'all' ? `${this.baseUrl}/issues?sensor_id=${encodeURIComponent(sensorId)}` : `${this.baseUrl}/issues`;
+    const res = await fetch(url);
     return await res.json();
   },
 
-  async getIncidents() {
-    const res = await fetch(`${this.baseUrl}/incidents`);
+  async getIncidents(sensorId = null) {
+    const url = sensorId && sensorId !== 'all' ? `${this.baseUrl}/incidents?sensor_id=${encodeURIComponent(sensorId)}` : `${this.baseUrl}/incidents`;
+    const res = await fetch(url);
     return await res.json();
   },
 
-  async getTriageReports() {
-    const res = await fetch(`${this.baseUrl}/triage`);
+  async getTriageReports(sensorId = null) {
+    const url = sensorId && sensorId !== 'all' ? `${this.baseUrl}/triage?sensor_id=${encodeURIComponent(sensorId)}` : `${this.baseUrl}/triage`;
+    const res = await fetch(url);
     return await res.json();
   },
 
