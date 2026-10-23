@@ -202,7 +202,9 @@
   border-radius: 2px;
 }
 .chip-pulse { background: #00f2fe; }
-.chip-aruba { background: #00f2fe; }
+.chip-ubnt, .chip-ubiquiti { background: #006fff; }
+.chip-bell { background: #005493; }
+.chip-aruba { background: #ff8300; }
 .chip-cisco { background: #00bceb; }
 .chip-mist { background: #00c389; }
 .chip-extreme { background: #7c5295; }

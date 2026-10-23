@@ -12,8 +12,17 @@ module.exports = {
   cycleIntervalSeconds: parseInt(process.env.CYCLE_INTERVAL || '15', 10),
   agentIntervalSeconds: parseInt(process.env.AGENT_INTERVAL || '300', 10),
   
-  // Configured networks for this sensor (Wired Ethernet eth0 on VM)
+  // Configured networks for this sensor (Wi-Fi 5GHz + Wired Ethernet)
   networks: [
+    {
+      id: 'net-wifi-corp',
+      name: 'MariosWorld1UP (5GHz)',
+      ssid: 'MariosWorld1UP',
+      type: 'wifi',
+      security: 'wpa2-psk',
+      isDhcp: true,
+      disableExternal: false
+    },
     {
       id: 'net-wired-eth0',
       name: 'Wired-Ethernet (eth0)',

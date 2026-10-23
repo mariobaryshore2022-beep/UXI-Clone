@@ -386,28 +386,51 @@ async function loadWifiEnvironment() {
           </tr>
         `;
       } else {
-        tbody.innerHTML = apList.map(ap => `
-          <tr>
-            <td><strong>${ap.ssid}</strong></td>
-            <td style="font-family: var(--font-mono); font-size: 0.75rem;">${ap.bssid}</td>
-            <td>
-              <span class="legend-chip">
-                <span class="chip-color chip-${ap.vendor?.toLowerCase() === 'aruba' ? 'pulse' : (ap.vendor?.toLowerCase() || 'pulse')}"></span>
-                ${ap.vendor_ap_name || (ap.vendor === 'Aruba' ? 'Pulse AP' : ap.vendor) || 'Pulse AP'}
-              </span>
-            </td>
-            <td><span class="badge badge-cyan-outline">${ap.band}</span></td>
-            <td style="font-family: var(--font-mono); font-weight: 700;">Ch ${ap.channel}</td>
-            <td style="font-family: var(--font-mono); color: ${ap.rssi >= -60 ? 'var(--uxi-emerald)' : 'var(--uxi-amber)'};">${ap.rssi} dBm</td>
-            <td style="font-family: var(--font-mono);">${ap.snr || 32} dB</td>
-            <td>${ap.channel_utilization || 24}%</td>
-            <td>${ap.client_count || 12}</td>
-            <td>${ap.security || 'wpa2-psk'}</td>
-            <td>
-              ${ap.is_connected ? '<span class="badge badge-success">CONNECTED</span>' : '<span style="color:var(--text-muted); font-size:0.75rem;">Visible</span>'}
-            </td>
-          </tr>
-        `).join('');
+        // Sort with connected AP first, then by RSSI descending
+        const sorted = [...apList].sort((a, b) => {
+          if (a.is_connected && !b.is_connected) return -1;
+          if (!a.is_connected && b.is_connected) return 1;
+          return (b.rssi || -100) - (a.rssi || -100);
+        });
+
+        tbody.innerHTML = sorted.map(ap => {
+          const vLower = (ap.vendor || '').toLowerCase();
+          let chipClass = 'chip-pulse';
+          if (vLower.includes('ubiquiti') || vLower.includes('unifi')) chipClass = 'chip-ubnt';
+          else if (vLower.includes('bell')) chipClass = 'chip-bell';
+          else if (vLower.includes('cisco')) chipClass = 'chip-cisco';
+          else if (vLower.includes('mist')) chipClass = 'chip-mist';
+          else if (vLower.includes('extreme')) chipClass = 'chip-extreme';
+          else if (vLower.includes('aruba')) chipClass = 'chip-aruba';
+
+          return `
+            <tr style="${ap.is_connected ? 'background: rgba(101, 193, 140, 0.08); border-left: 3px solid #65c18c;' : ''}">
+              <td>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  ${ap.is_connected ? '<span style="color: #65c18c; font-size: 0.85rem;" title="Currently Associated">●</span>' : ''}
+                  <strong>${ap.ssid}</strong>
+                </div>
+              </td>
+              <td style="font-family: var(--font-mono); font-size: 0.75rem;">${ap.bssid}</td>
+              <td>
+                <span class="legend-chip">
+                  <span class="chip-color ${chipClass}"></span>
+                  ${ap.vendor_ap_name || ap.vendor || 'Pulse AP'}
+                </span>
+              </td>
+              <td><span class="badge badge-cyan-outline">${ap.band}</span></td>
+              <td style="font-family: var(--font-mono); font-weight: 700;">Ch ${ap.channel}</td>
+              <td style="font-family: var(--font-mono); color: ${ap.rssi >= -60 ? '#65c18c' : (ap.rssi >= -75 ? '#f39c12' : '#94a3b8')};">${ap.rssi} dBm</td>
+              <td style="font-family: var(--font-mono);">${ap.snr || 32} dB</td>
+              <td>${ap.channel_utilization || 24}%</td>
+              <td>${ap.client_count || 12}</td>
+              <td>${ap.security || 'wpa2-psk'}</td>
+              <td>
+                ${ap.is_connected ? '<span class="badge badge-success" style="font-weight: 700; background: rgba(101, 193, 140, 0.2); color: #65c18c; border: 1px solid #65c18c;">CONNECTED</span>' : '<span style="color:var(--text-muted); font-size:0.75rem;">Visible</span>'}
+              </td>
+            </tr>
+          `;
+        }).join('');
       }
     }
   } catch (err) {

@@ -67,6 +67,9 @@ function renderWifiSpectrum(containerId, apList = []) {
       if (ap.vendor === 'Cisco') { vendorClass = 'chip-cisco'; vendorColor = '#00bceb'; }
       else if (ap.vendor === 'Mist') { vendorClass = 'chip-mist'; vendorColor = '#00c389'; }
       else if (ap.vendor === 'Extreme') { vendorClass = 'chip-extreme'; vendorColor = '#7c5295'; }
+      else if (ap.vendor === 'Ubiquiti') { vendorClass = 'chip-ubnt'; vendorColor = '#006fff'; }
+      else if (ap.vendor === 'Bell') { vendorClass = 'chip-bell'; vendorColor = '#005493'; }
+      else if (ap.vendor === 'Aruba') { vendorClass = 'chip-aruba'; vendorColor = '#ff8300'; }
       else if (ap.vendor === 'Enterprise' || ap.vendor === 'Pulse AP') { vendorClass = 'chip-pulse'; vendorColor = '#00f2fe'; }
 
       html += `

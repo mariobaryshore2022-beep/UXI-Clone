@@ -72,6 +72,15 @@ class SystemInfo {
     return null;
   }
 
+  static getActiveWifiSsid(iface = 'wlan0') {
+    try {
+      const out = execSync(`iw dev ${iface} link 2>/dev/null || nmcli -t -f active,ssid dev wifi 2>/dev/null || true`).toString();
+      const match = out.match(/SSID:\s*([^\n\r]+)/) || out.match(/yes:\s*([^\n\r]+)/);
+      if (match) return match[1].trim();
+    } catch {}
+    return null;
+  }
+
   static getDnsServers() {
     const servers = [];
     try {

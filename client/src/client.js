@@ -22,10 +22,28 @@ class PulseSensorClient {
     this.netDetails = SystemInfo.getNetworkDetails();
     this.hwDetails = SystemInfo.getHardwareDetails();
 
+    // Auto-detect and configure active Wi-Fi network if operating over wireless radio
+    if (this.netDetails.activeInterface && (this.netDetails.activeInterface.startsWith('wl') || this.netDetails.activeInterface.includes('wlan'))) {
+      const activeSsid = SystemInfo.getActiveWifiSsid(this.netDetails.activeInterface) || 'MariosWorld1UP';
+      const hasWifi = this.networks.some(n => n.type === 'wifi' || n.name?.toLowerCase().includes('wi-fi'));
+      if (!hasWifi) {
+        this.networks.unshift({
+          id: `net-wifi-${activeSsid.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+          name: `${activeSsid} (${this.netDetails.activeInterface})`,
+          ssid: activeSsid,
+          type: 'wifi',
+          security: 'wpa2-psk',
+          isDhcp: true,
+          disableExternal: false
+        });
+        console.log(`[Pulse UX Sensor] Auto-configured live Wi-Fi network: ${activeSsid} on ${this.netDetails.activeInterface}`);
+      }
+    }
+
     this.activeTests = [];
 
     this.sf = new StoreAndForward(this.serverUrl);
-    this.linuxRunner = new LinuxRunner(this.netDetails.activeInterface, 'eth0');
+    this.linuxRunner = new LinuxRunner(this.netDetails.activeInterface, config.managementInterface || this.netDetails.activeInterface);
     this.simulator = new Simulator();
 
     console.log(`[Pulse UX Sensor] Initialized. ID: ${this.sensorId}, Mode: ${this.mode.toUpperCase()}, Simulate: ${this.simulate}`);
