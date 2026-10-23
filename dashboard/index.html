@@ -107,23 +107,79 @@
     <section class="tab-pane active" id="tab-simple">
       <div class="pulse-simple-dashboard">
         <!-- Simple View Header Bar with Config Button -->
+        <!-- Simple View Header Bar with Authentic Aruba UXI Controls -->
         <div class="simple-top-bar">
-          <div class="simple-view-heading">
-            <h2 class="simple-title">DIGITAL EXPERIENCE MONITORING</h2>
-            <span class="simple-subtitle">Autonomous 4-Pillar Synthetic Telemetry Pipeline</span>
+          <div class="simple-top-left">
+            <!-- Authentic Nav Switcher Circles -->
+            <div class="simple-view-switchers">
+              <button class="switcher-circle active" title="Experience Simple View (Current)" onclick="switchTab('simple')">
+                <svg viewBox="0 0 100 100" width="18" height="18" fill="none" stroke="currentColor" stroke-width="8">
+                  <circle cx="50" cy="50" r="42" />
+                  <circle cx="36" cy="38" r="5" fill="currentColor" stroke="none" />
+                  <circle cx="64" cy="38" r="5" fill="currentColor" stroke="none" />
+                  <path d="M 32 54 Q 50 74 68 54" stroke-linecap="round" />
+                </svg>
+              </button>
+              <button class="switcher-circle" title="Fleet Sensors Map" onclick="switchTab('map')">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="2" y1="12" x2="22" y2="12"/>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
+              </button>
+              <button class="switcher-circle" title="Sensors Fleet Table" onclick="switchTab('sensors')">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="7" height="7"/>
+                  <rect x="14" y="3" width="7" height="7"/>
+                  <rect x="14" y="14" width="7" height="7"/>
+                  <rect x="3" y="14" width="7" height="7"/>
+                </svg>
+              </button>
+              <button class="switcher-circle" title="Wi-Fi RF & Topology" onclick="switchTab('wifi')">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="18" cy="5" r="3"/>
+                  <circle cx="6" cy="12" r="3"/>
+                  <circle cx="18" cy="19" r="3"/>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Group Filter Dropdown matching screenshot -->
+            <div class="groups-filter-dropdown-wrapper" id="groups-filter-wrapper">
+              <button class="btn-groups-dropdown" id="btn-groups-dropdown" onclick="toggleGroupsDropdown()" title="Filter Experience by Sensor Group">
+                <span id="selected-group-label">All Groups</span>
+                <span class="dropdown-caret">▾</span>
+              </button>
+              <div class="groups-dropdown-menu" id="groups-dropdown-menu" style="display: none;">
+                <!-- Populated dynamically via simpleView.js -->
+              </div>
+            </div>
           </div>
-          <div class="simple-top-actions">
-            <button id="btn-open-simple-config" class="btn-config-simple" onclick="openSimpleConfigModal()" title="Configure Monitored Items across 4 Pillars">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-              Configure Pillars
-            </button>
+
+          <div class="simple-top-right">
+            <div class="simple-brand-tag">
+              <span class="brand-uxi-title">UXI</span>
+              <span class="brand-uxi-sub">User Experience Insight</span>
+            </div>
+            <div class="simple-top-actions">
+              <button id="btn-open-sensor-groups" class="btn-config-simple" onclick="openSensorGroupsModal()" title="Define and configure groups of sensors">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Define Groups
+              </button>
+              <button id="btn-open-simple-config" class="btn-config-simple" onclick="openSimpleConfigModal()" title="Configure Monitored Items across 4 Pillars">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                Configure Pillars
+              </button>
+            </div>
           </div>
         </div>
 
         <!-- 4 Core Pillars Grid -->
         <div class="pulse-pillars-grid">
           
-          <!-- 1. Experience Column -->
+          <!-- 1. Experience Column (Groups of Sensors) -->
           <div class="pulse-pillar-col" id="pillar-col-experience">
             <div class="pillar-avatar-wrapper">
               <div class="pillar-avatar-circle circle-bad" id="simple-circle-experience" data-pillar="experience">
@@ -136,12 +192,13 @@
               </div>
               <span class="pillar-number-badge badge-1">1</span>
             </div>
-            <h3 class="pillar-col-title">Experience</h3>
+            <h3 class="pillar-col-title"><span class="col-sort-arrows">⇅</span> Experience</h3>
             
             <div class="pillar-items-list" id="simple-list-experience">
-              <!-- Dynamically populated -->
+              <!-- Dynamically populated from sensor groups -->
             </div>
           </div>
+
 
           <!-- 2. Services Column -->
           <div class="pulse-pillar-col" id="pillar-col-services">
@@ -1189,6 +1246,105 @@
       </div>
     </div>
   </div>
+
+  <!-- Sensor Groups Definition Modal -->
+  <div id="modal-sensor-groups" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog modal-dialog-lg modal-sensor-groups-dialog">
+      <div class="modal-header">
+        <div>
+          <h3 id="modal-groups-title">Define Sensor Groups</h3>
+          <span class="modal-subtext">Organize sensors into logical groups, device fleets, and regional clusters to aggregate Digital Experience</span>
+        </div>
+        <button class="btn-close" onclick="closeSensorGroupsModal()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="sensor-groups-layout">
+          <!-- Left: Groups List -->
+          <div class="groups-list-pane">
+            <div class="groups-list-header">
+              <h4 class="groups-pane-title">Configured Groups</h4>
+              <button class="btn btn-sm btn-outline-primary" id="btn-new-group" onclick="startNewSensorGroup()">+ New Group</button>
+            </div>
+            <div class="groups-list-container" id="sensor-groups-list">
+              <!-- Dynamically populated via simpleView.js -->
+            </div>
+          </div>
+
+          <!-- Right: Group Editor Form -->
+          <div class="group-editor-pane">
+            <div class="group-editor-header">
+              <h4 class="groups-pane-title" id="editor-form-title">Group Properties</h4>
+              <span class="editor-mode-badge" id="editor-mode-badge">Creating New</span>
+            </div>
+            
+            <form id="form-sensor-group" onsubmit="handleSaveSensorGroup(event)">
+              <input type="hidden" id="group-edit-id" value="">
+
+              <div class="form-group">
+                <label>Group Name <span class="required" style="color: #e76f51;">*</span></label>
+                <input type="text" id="group-input-name" class="config-input" placeholder="e.g. Laptop Agents, EMEA, Branch Clinic 4" required>
+              </div>
+
+              <div class="form-group">
+                <label>Description / Note</label>
+                <input type="text" id="group-input-desc" class="config-input" placeholder="e.g. Roaming Wi-Fi laptops in HQ">
+              </div>
+
+              <div class="form-row-2col">
+                <div class="form-group">
+                  <label>Pill Style & Health</label>
+                  <select id="group-input-status" class="config-select">
+                    <option value="blue">Blue (Fleet / Region Healthy)</option>
+                    <option value="split-red-blue">Split Red/Blue (Mixed Status / Degraded)</option>
+                    <option value="green">Green (Operational / Verified)</option>
+                    <option value="red">Red (Critical Incident)</option>
+                    <option value="gray">Gray (Staging / Inactive)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Micro Icon</label>
+                  <select id="group-input-icon" class="config-select">
+                    <option value="none">None</option>
+                    <option value="wifi">Wi-Fi Wave (Wireless)</option>
+                    <option value="laptop">Laptop / Agent</option>
+                    <option value="bolt">Lightning / Service</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Sensor Membership Checklist -->
+              <div class="form-group">
+                <div class="checklist-header">
+                  <label>Assign Sensors to Group</label>
+                  <div class="checklist-actions">
+                    <button type="button" class="btn-link-action" onclick="selectAllGroupSensors(true)">Select All</button>
+                    <span class="checklist-divider">|</span>
+                    <button type="button" class="btn-link-action" onclick="selectAllGroupSensors(false)">Clear</button>
+                  </div>
+                </div>
+                <div class="sensors-checklist-container" id="group-sensors-checklist">
+                  <!-- Checkbox list of active sensors populated dynamically -->
+                </div>
+                <span class="form-help-text" style="font-size: 0.72rem; color: #94a3b8; display: block; margin-top: 4px;">Check all sensors whose synthetic probes and SLA aggregate into this Experience group.</span>
+              </div>
+
+              <div class="group-editor-actions" style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px;">
+                <button type="button" class="btn btn-secondary" onclick="startNewSensorGroup()">Cancel / Clear</button>
+                <button type="submit" class="btn btn-primary" id="btn-save-group">Save Sensor Group</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="justify-content: space-between;">
+        <button class="btn btn-outline-danger" id="btn-reset-groups-defaults" onclick="resetSensorGroupsDefaults()">Reset to Aruba UXI Baseline Groups</button>
+        <button class="btn btn-primary" onclick="closeSensorGroupsModal()">Close & Apply</button>
+      </div>
+    </div>
+  </div>
+
 
   <!-- Pulse UX Simple View Authentic Hover Detail Card -->
   <div id="simple-item-hovercard" class="simple-item-hovercard" style="display: none;">

@@ -185,3 +185,25 @@ CREATE TABLE IF NOT EXISTS simple_view_items (
 );
 
 CREATE INDEX IF NOT EXISTS idx_simple_view_pillar ON simple_view_items (pillar, order_index);
+
+-- Defined Sensor Groups for Experience Column & Fleet Partitioning
+CREATE TABLE IF NOT EXISTS sensor_groups (
+    id VARCHAR(64) PRIMARY KEY,
+    name VARCHAR(128) NOT NULL,
+    description VARCHAR(256),
+    color VARCHAR(32) DEFAULT '#4f75ff',
+    status VARCHAR(32) DEFAULT 'blue', -- 'blue', 'green', 'red', 'yellow', 'gray', 'split-red-blue'
+    icon_type VARCHAR(32) DEFAULT '', -- '', 'wifi', 'bolt', 'bell'
+    is_split_status BOOLEAN DEFAULT FALSE,
+    order_index INT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sensor_group_members (
+    group_id VARCHAR(64) REFERENCES sensor_groups(id) ON DELETE CASCADE,
+    sensor_id VARCHAR(64) REFERENCES sensors(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (group_id, sensor_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sensor_group_order ON sensor_groups (order_index);

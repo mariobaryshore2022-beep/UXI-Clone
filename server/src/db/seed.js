@@ -131,6 +131,65 @@ async function seedData() {
       executed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  // Ensure sensor_groups & sensor_group_members tables exist
+  await query(`
+    CREATE TABLE IF NOT EXISTS sensor_groups (
+      id VARCHAR(64) PRIMARY KEY,
+      name VARCHAR(128) NOT NULL,
+      description VARCHAR(256),
+      color VARCHAR(32) DEFAULT '#4f75ff',
+      status VARCHAR(32) DEFAULT 'blue',
+      icon_type VARCHAR(32) DEFAULT '',
+      is_split_status BOOLEAN DEFAULT FALSE,
+      order_index INT DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS sensor_group_members (
+      group_id VARCHAR(64) REFERENCES sensor_groups(id) ON DELETE CASCADE,
+      sensor_id VARCHAR(64) REFERENCES sensors(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (group_id, sensor_id)
+    );
+  `);
+
+  const existingGroups = await query('SELECT count(*) as count FROM sensor_groups');
+  if (parseInt(existingGroups.rows[0].count, 10) === 0) {
+    console.log('Seeding baseline Sensor Groups for Experience monitoring...');
+    await query(`
+      INSERT INTO sensor_groups (id, name, description, color, status, icon_type, is_split_status, order_index)
+      VALUES
+      ('grp-laptop-agents', 'Laptop Agents', 'Field roaming laptops with Wi-Fi & Ethernet synthetic probes', '#4f75ff', 'red', 'wifi', true, 1),
+      ('grp-6e-sensor', '6E sensor', 'Tri-Band Wi-Fi 6E (6GHz) Dedicated Monitoring Pods', '#4f75ff', 'blue', '', false, 2),
+      ('grp-apj', 'APJ', 'Asia-Pacific Regional Sensor Cluster', '#4f75ff', 'blue', '', false, 3),
+      ('grp-emea', 'EMEA', 'Europe, Middle East & Africa Clinical Sensors', '#4f75ff', 'blue', '', false, 4),
+      ('grp-na', 'North America', 'North American Health Centers & HQ Probes', '#4f75ff', 'blue', '', false, 5),
+      ('grp-android-agents', 'Android Agents', 'Mobile Clinical Handhelds & Barcode Scanners', '#65c18c', 'green', '', false, 6),
+      ('grp-staging', 'staging', 'Pre-deployment staging validation bench', '#64748b', 'gray', '', false, 7)
+    `);
+
+    // Ensure default sensors exist before creating memberships
+    await query(`
+      INSERT INTO sensors (id, name, mode, hardware_model, firmware_version)
+      VALUES
+      ('sensor-kali-laptop2', 'Kali-Field-Laptop (192.168.1.125)', 'sensor', 'kali (x64)', '2.4.0-pulse'),
+      ('sensor-kali-arm64', 'sensor-kali-arm64', 'sensor', 'Intel N100 / AX210', '2.4.0-uxi')
+      ON CONFLICT (id) DO NOTHING
+    `);
+
+    // Assign active sensors to groups
+    await query(`
+      INSERT INTO sensor_group_members (group_id, sensor_id)
+      VALUES
+      ('grp-laptop-agents', 'sensor-kali-laptop2'),
+      ('grp-na', 'sensor-kali-laptop2'),
+      ('grp-na', 'sensor-kali-arm64')
+      ON CONFLICT DO NOTHING
+    `);
+  }
 }
 
 module.exports = { seedData };
