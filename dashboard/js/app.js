@@ -6,6 +6,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initFaultSimulation();
   setupTriageActions();
   initEventSource();
+  if (typeof initRemoteTerminal === 'function') {
+    initRemoteTerminal();
+  }
 
   // Initial Data Load
   if (typeof initSimpleView === 'function') {
@@ -350,6 +353,7 @@ async function loadSensors() {
             <span style="font-size: 0.72rem; color: var(--text-muted);">Firmware: ${s.firmware_version || '2.4.0-uxi'}</span>
             <div style="display: flex; gap: 0.5rem;">
               <button class="btn btn-secondary btn-sm" onclick="selectAndFocusSensorHistory('${s.id}')">View History</button>
+              <button class="btn btn-secondary btn-sm" onclick="openRemoteTerminal('${s.id}', '${s.name}', '${s.ip_address || ''}')" style="border-color: #00f2fe; color: #00f2fe;" title="Open Remote Shell Console">&gt;_ Terminal</button>
               <button class="btn btn-secondary btn-sm btn-run-cycle" onclick="triggerSensorCycle('${s.id}', this)" title="Dispatch immediate test cycle to sensor">Run Cycle</button>
             </div>
           </div>

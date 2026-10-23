@@ -2082,5 +2082,84 @@
   color: #050b14;
 }
 
+/* =========================================================================
+   Remote Cloud Terminal Component
+   ========================================================================= */
+.term-presets-bar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.term-preset-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.term-preset-btn:hover {
+  background: rgba(0, 242, 254, 0.15);
+  border-color: #00f2fe;
+  color: #00f2fe;
+}
+
+.term-screen {
+  background: #070a10;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #cbd5e1;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+}
+
+.term-prompt-line {
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.term-prompt {
+  color: #00f2fe;
+  font-weight: 700;
+}
+
+.term-cmd {
+  color: #f8fafc;
+  font-weight: 600;
+}
+
+.term-stdout {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #cbd5e1;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.term-stderr {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #f43f5e;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.term-status-line {
+  font-size: 0.72rem;
+  margin-top: 4px;
+  margin-bottom: 8px;
+  font-family: inherit;
+}
+
+
 
 

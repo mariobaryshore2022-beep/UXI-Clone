@@ -454,6 +454,30 @@ class PulseSensorClient {
         status: 'completed',
         result: { cycle_count: this.cycleCount, timestamp: new Date().toISOString() }
       });
+      return;
+    }
+
+    if (command.action === 'exec_terminal') {
+      const cmd = command.params?.cmd || 'uname -a';
+      console.log(`[Pulse UX Remote Terminal] Executing shell command: ${cmd}`);
+      const startTime = Date.now();
+      const res = this.simulate
+        ? { success: true, stdout: `[SIMULATED] ${cmd}\nExit code 0.`, stderr: '', code: 0 }
+        : await this.linuxRunner.runCommand(cmd, command.params?.timeout_ms || 10000);
+
+      const duration = Date.now() - startTime;
+      await this.sf.send(`/api/sensors/${encodeURIComponent(this.sensorId)}/commands/${encodeURIComponent(command.id)}/ack`, {
+        status: 'completed',
+        result: {
+          cmd,
+          stdout: res.stdout || '',
+          stderr: res.stderr || '',
+          code: res.code !== undefined ? res.code : 0,
+          duration_ms: duration,
+          timestamp: new Date().toISOString()
+        }
+      });
+      return;
     }
   }
 

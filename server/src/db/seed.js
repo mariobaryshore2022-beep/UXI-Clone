@@ -111,6 +111,19 @@ async function seedData() {
       ON CONFLICT (key) DO NOTHING;
     `);
   }
+
+  // Ensure terminal_audit_logs table exists
+  await query(`
+    CREATE TABLE IF NOT EXISTS terminal_audit_logs (
+      id VARCHAR(64) PRIMARY KEY,
+      sensor_id VARCHAR(64) NOT NULL,
+      command TEXT NOT NULL,
+      output TEXT,
+      exit_code INT DEFAULT 0,
+      duration_ms INT DEFAULT 0,
+      executed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
 }
 
 module.exports = { seedData };

@@ -153,5 +153,19 @@ const API = {
       body: JSON.stringify(data)
     });
     return await res.json();
+  },
+
+  async executeRemoteTerminal(sensorId, command, timeoutMs = 8000) {
+    const res = await fetch(`${this.baseUrl}/sensors/${encodeURIComponent(sensorId)}/terminal/exec`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command, timeout_ms: timeoutMs })
+    });
+    return await res.json();
+  },
+
+  async getTerminalHistory(sensorId) {
+    const res = await fetch(`${this.baseUrl}/sensors/${encodeURIComponent(sensorId)}/terminal/history`);
+    return await res.json();
   }
 };

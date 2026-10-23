@@ -1,5 +1,8 @@
 const express = require('express');
 const router = express.Router();
+const { exec } = require('child_process');
+const util = require('util');
+const execPromise = util.promisify(exec);
 const { query } = require('../db');
 const { broadcastEvent } = require('./sse');
 const { evaluateResult } = require('../engine/thresholdEngine');
@@ -299,6 +302,115 @@ router.put('/sensors/:id/location', async (req, res) => {
 
     broadcastEvent('sensor_location_updated', { id, latitude: lat, longitude: lng, location_name, floor });
     res.json({ status: 'ok', id, latitude: lat, longitude: lng, location_name, floor });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3f. Remote Cloud Terminal Execution
+router.post('/sensors/:id/terminal/exec', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { command, timeout_ms } = req.body;
+
+    if (!command || typeof command !== 'string' || !command.trim()) {
+      return res.status(400).json({ error: 'Command string is required' });
+    }
+
+    const trimmed = command.trim();
+    // Safety filter for catastrophic system commands
+    if (/rm\s+-rf\s+(\/|~|\/\*)/i.test(trimmed) || /mkfs/i.test(trimmed)) {
+      return res.status(403).json({ error: 'Command rejected: forbidden destructive operation.' });
+    }
+
+    const startTime = Date.now();
+    let stdout = '';
+    let stderr = '';
+    let exitCode = 0;
+
+    // Check sensor metadata in DB
+    const sensorRes = await query('SELECT * FROM sensors WHERE id = $1', [id]);
+    const sensor = sensorRes.rows[0];
+    const sensorIp = sensor?.ip_address || '192.168.64.4';
+
+    // Direct SSH execution for sub-second terminal response when reachable
+    if (sensorIp.startsWith('192.168.64.') || id === 'sensor-kali-arm64') {
+      try {
+        const timeout = Math.min(timeout_ms || 8000, 20000);
+        const escapedCmd = trimmed.replace(/"/g, '\\"');
+        const sshCmd = `ssh -i /Users/marlia/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o ConnectTimeout=3 mario@${sensorIp} "bash -c \\"${escapedCmd}\\""`;
+        const result = await execPromise(sshCmd, { timeout });
+        stdout = result.stdout || '';
+        stderr = result.stderr || '';
+        exitCode = 0;
+      } catch (sshErr) {
+        stdout = sshErr.stdout || '';
+        stderr = sshErr.stderr || sshErr.message;
+        exitCode = sshErr.code || 1;
+      }
+    } else {
+      // Fallback: Queue on 2-way command bus and await ack
+      const cmdId = `cmd-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+      const cmdObj = {
+        id: cmdId,
+        sensor_id: id,
+        action: 'exec_terminal',
+        params: { cmd: trimmed, timeout_ms: timeout_ms || 8000 },
+        created_at: new Date().toISOString(),
+        status: 'pending'
+      };
+      if (!sensorCommandQueues[id]) sensorCommandQueues[id] = [];
+      sensorCommandQueues[id].push(cmdObj);
+      
+      const pollStart = Date.now();
+      while (Date.now() - pollStart < 5000) {
+        await new Promise(r => setTimeout(r, 400));
+        if (cmdObj.status === 'completed') {
+          stdout = cmdObj.result?.stdout || '';
+          stderr = cmdObj.result?.stderr || '';
+          exitCode = cmdObj.result?.code || 0;
+          break;
+        }
+      }
+      if (cmdObj.status !== 'completed') {
+        stdout = `[Pulse UX Command Bus] Command '${trimmed}' queued for remote sensor. Awaiting sensor sync.`;
+      }
+    }
+
+    const durationMs = Date.now() - startTime;
+
+    // Log to audit table
+    const auditId = `audit-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+    await query(`
+      INSERT INTO terminal_audit_logs (id, sensor_id, command, output, exit_code, duration_ms)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `, [auditId, id, trimmed, (stdout + (stderr ? '\n' + stderr : '')).trim(), exitCode, durationMs]).catch(() => {});
+
+    broadcastEvent('terminal_executed', { sensor_id: id, command: trimmed, exit_code: exitCode });
+
+    res.json({
+      sensor_id: id,
+      command: trimmed,
+      stdout,
+      stderr,
+      exit_code: exitCode,
+      duration_ms: durationMs
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/sensors/:id/terminal/history', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const results = await query(`
+      SELECT * FROM terminal_audit_logs 
+      WHERE sensor_id = $1 
+      ORDER BY executed_at DESC 
+      LIMIT 30
+    `, [id]);
+    res.json(results.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

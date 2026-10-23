@@ -445,6 +445,10 @@ function showSensorDrilldown(sensor) {
 
       <!-- Direct Drill-Down Action Buttons -->
       <div class="drawer-action-buttons">
+        <button class="btn btn-secondary drawer-btn-full" onclick="openRemoteTerminal('${sensor.id}', '${sensor.name}', '${sensor.ip_address || ''}')" style="border-color: #38bdf8; color: #38bdf8; background: rgba(56, 189, 248, 0.08);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          Open Remote Cloud Terminal
+        </button>
         <button class="btn btn-secondary drawer-btn-full" onclick="triggerSensorCycle('${sensor.id}', this)" style="border-color: #00f2fe; color: #00f2fe;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           Dispatch Immediate Test Cycle

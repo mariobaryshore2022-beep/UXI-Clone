@@ -961,6 +961,56 @@
     </div>
   </div>
 
+  <!-- Remote Cloud Terminal Modal -->
+  <div id="modal-remote-terminal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog modal-lg" style="max-width: 900px; width: 95vw; background: #0c1017; border: 1px solid rgba(0, 242, 254, 0.35); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85), 0 0 30px rgba(0, 242, 254, 0.15); border-radius: 8px; overflow: hidden;">
+      <div class="modal-header" style="background: rgba(12, 16, 23, 0.95); border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding: 0.85rem 1.25rem; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="display: flex; gap: 6px;">
+            <span style="display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: #ef4444;"></span>
+            <span style="display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: #f59e0b;"></span>
+            <span style="display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: #10b981;"></span>
+          </div>
+          <div>
+            <h3 id="terminal-modal-title" style="margin: 0; font-size: 0.98rem; font-family: var(--font-mono, monospace); color: #00f2fe; display: flex; align-items: center; gap: 8px;">
+              Remote Cloud Console — Kali-Linux-Sensor
+            </h3>
+            <span id="terminal-modal-meta" style="font-size: 0.72rem; color: #94a3b8; font-family: var(--font-mono, monospace);">Connected to sensor-kali-arm64 • Realtime Shell</span>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button class="btn btn-secondary btn-sm" onclick="clearTerminal()" style="padding: 4px 10px; font-size: 0.75rem;">Clear Screen</button>
+          <button class="btn-close" onclick="closeRemoteTerminal()" style="color: #94a3b8; font-size: 1.3rem;">&times;</button>
+        </div>
+      </div>
+
+      <!-- Quick Diagnostic Preset Toolbar -->
+      <div class="term-presets-bar" style="background: rgba(0, 0, 0, 0.4); border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding: 0.5rem 1rem; display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+        <span style="font-size: 0.68rem; color: #64748b; font-weight: 700; text-transform: uppercase; margin-right: 4px;">Quick Diagnostics:</span>
+        <button class="term-preset-btn" data-cmd="ip -br a">Interface IP</button>
+        <button class="term-preset-btn" data-cmd="ip route">Route Table</button>
+        <button class="term-preset-btn" data-cmd="ping -c 3 192.168.64.1">Ping Gateway</button>
+        <button class="term-preset-btn" data-cmd="dig @1.1.1.1 google.com +stats">DNS Test</button>
+        <button class="term-preset-btn" data-cmd="sudo journalctl -u pulse-sensor -n 25 --no-pager">Daemon Logs</button>
+        <button class="term-preset-btn" data-cmd="uptime && free -h">System Load</button>
+      </div>
+
+      <!-- Terminal Output Screen -->
+      <div id="terminal-output" class="term-screen" style="height: 380px; overflow-y: auto; background: #070a10; padding: 1rem; font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace; font-size: 0.82rem; line-height: 1.5; color: #cbd5e1; user-select: text;">
+        <!-- Terminal lines dynamically rendered -->
+      </div>
+
+      <!-- Command Input Bar -->
+      <div class="modal-footer" style="background: rgba(12, 16, 23, 0.98); border-top: 1px solid rgba(255, 255, 255, 0.08); padding: 0.75rem 1rem; display: flex; gap: 8px; align-items: center;">
+        <span id="terminal-prompt-label" style="font-family: monospace; font-size: 0.82rem; color: #00f2fe; white-space: nowrap; font-weight: 700;">mario@sensor:~$</span>
+        <input type="text" id="terminal-input" placeholder="Type a command (e.g. iw dev, ping -c 3 8.8.8.8, df -h, ps aux)..." autocomplete="off" spellcheck="false" style="flex: 1; background: #070a10; border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 4px; padding: 6px 12px; font-family: monospace; font-size: 0.82rem; color: #fff; outline: none;">
+        <button class="btn btn-cyan btn-sm" id="btn-terminal-run" onclick="const input = document.getElementById('terminal-input'); if(input && input.value.trim()) executeTerminalCommand(input.value.trim());">
+          Execute
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Manually Set Sensor Location Modal -->
   <div id="modal-set-sensor-location" class="modal-backdrop" style="display: none;">
     <div class="modal-dialog">
@@ -1134,6 +1184,7 @@
   <script src="js/components/sensorHistory.js"></script>
   <script src="js/components/simpleView.js"></script>
   <script src="js/components/fleetMap.js"></script>
+  <script src="js/components/remoteTerminal.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
