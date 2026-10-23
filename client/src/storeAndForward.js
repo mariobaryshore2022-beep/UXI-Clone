@@ -72,6 +72,22 @@ class StoreAndForward {
     }
   }
 
+  async get(endpoint) {
+    const url = `${this.serverUrl}${endpoint}`;
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(3000)
+      });
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch {}
+    return null;
+  }
+
+
   async flushQueue() {
     if (this.isFlushing) return;
     const queue = this.readQueue();

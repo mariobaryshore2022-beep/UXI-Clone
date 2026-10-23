@@ -175,6 +175,7 @@ router.post('/sensors/register', async (req, res) => {
         name = EXCLUDED.name,
         mode = EXCLUDED.mode,
         ip_address = EXCLUDED.ip_address,
+        mac_address = EXCLUDED.mac_address,
         hardware_model = EXCLUDED.hardware_model,
         hardware_info = EXCLUDED.hardware_info,
         last_seen = NOW(),
@@ -190,14 +191,95 @@ router.post('/sensors/register', async (req, res) => {
       JSON.stringify(hardware_info || {})
     ]);
 
-    broadcastEvent('sensor_updated', { id, status: 'online' });
+    broadcastEvent('sensor_updated', { id, status: 'online', ip_address, mac_address, hardware_model });
     res.json({ status: 'ok', id });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// 3b. Update Sensor Map Coordinates & Location Metadata
+// In-Memory Sensor Command Queue
+const sensorCommandQueues = {};
+
+// 3b. Send Command to Sensor (Run cycle, test, reboot, ping)
+router.post('/sensors/:id/command', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action, params } = req.body;
+
+    if (!action) {
+      return res.status(400).json({ error: 'Command action required' });
+    }
+
+    const command = {
+      id: `cmd-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+      sensor_id: id,
+      action,
+      params: params || {},
+      created_at: new Date().toISOString(),
+      status: 'pending'
+    };
+
+    if (!sensorCommandQueues[id]) {
+      sensorCommandQueues[id] = [];
+    }
+    // Limit queue size per sensor to last 20
+    if (sensorCommandQueues[id].length > 20) {
+      sensorCommandQueues[id].shift();
+    }
+    sensorCommandQueues[id].push(command);
+
+    console.log(`[Pulse UX Hub] Command queued for sensor ${id}: ${action} (ID: ${command.id})`);
+
+    // Broadcast command via SSE
+    broadcastEvent('sensor_command', command);
+
+    res.json({ status: 'queued', command });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3c. Polling endpoint for sensor to fetch next pending command
+router.get('/sensors/:id/commands/next', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const queue = sensorCommandQueues[id] || [];
+    const nextCmd = queue.find(c => c.status === 'pending');
+
+    if (nextCmd) {
+      nextCmd.status = 'in_progress';
+      res.json({ command: nextCmd });
+    } else {
+      res.json({ command: null });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3d. Sensor acknowledges command execution completion
+router.post('/sensors/:id/commands/:cmdId/ack', async (req, res) => {
+  try {
+    const { id, cmdId } = req.params;
+    const { status, result } = req.body;
+
+    const queue = sensorCommandQueues[id] || [];
+    const cmd = queue.find(c => c.id === cmdId);
+    if (cmd) {
+      cmd.status = status || 'completed';
+      cmd.completed_at = new Date().toISOString();
+      cmd.result = result || {};
+    }
+
+    broadcastEvent('sensor_command_ack', { sensor_id: id, command_id: cmdId, status, result });
+    res.json({ status: 'ok', command_id: cmdId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3e. Update Sensor Map Coordinates & Location Metadata
 router.put('/sensors/:id/location', async (req, res) => {
   try {
     const { id } = req.params;

@@ -105,5 +105,14 @@ const API = {
       method: 'POST'
     });
     return await res.json();
+  },
+
+  async sendSensorCommand(sensorId, action, params = {}) {
+    const res = await fetch(`${this.baseUrl}/sensors/${encodeURIComponent(sensorId)}/command`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, params })
+    });
+    return await res.json();
   }
 };

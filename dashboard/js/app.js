@@ -139,6 +139,22 @@ function initEventSource() {
     loadSensors();
     if (typeof refreshFleetMapData === 'function') refreshFleetMapData();
   });
+
+  evtSource.addEventListener('sensor_command', (e) => {
+    try {
+      const cmd = JSON.parse(e.data);
+      console.log('[Pulse UX Hub SSE] Sensor command dispatched:', cmd);
+    } catch {}
+  });
+
+  evtSource.addEventListener('sensor_command_ack', (e) => {
+    try {
+      const ack = JSON.parse(e.data);
+      console.log('[Pulse UX Hub SSE] Sensor command ACK:', ack);
+      showCommandToast(`Sensor ${ack.sensor_id} finished execution!`);
+      loadSensors();
+    } catch {}
+  });
 }
 
 // 3. Data Loaders
@@ -325,7 +341,7 @@ async function loadSensors() {
             <span style="font-size: 0.72rem; color: var(--text-muted);">Firmware: ${s.firmware_version || '2.4.0-uxi'}</span>
             <div style="display: flex; gap: 0.5rem;">
               <button class="btn btn-secondary btn-sm" onclick="selectAndFocusSensorHistory('${s.id}')">View History</button>
-              <button class="btn btn-secondary btn-sm" onclick="alert('Triggering immediate round-robin cycle on ${s.name}...')">Run Cycle</button>
+              <button class="btn btn-secondary btn-sm btn-run-cycle" onclick="triggerSensorCycle('${s.id}', this)" title="Dispatch immediate test cycle to sensor">Run Cycle</button>
             </div>
           </div>
         </div>
@@ -507,3 +523,58 @@ function initFaultSimulation() {
     });
   }
 }
+
+// 6. Sensor Command Dispatcher
+async function triggerSensorCycle(sensorId, btnEl) {
+  if (btnEl) {
+    btnEl.disabled = true;
+    btnEl.innerText = 'Dispatching...';
+  }
+  try {
+    const res = await API.sendSensorCommand(sensorId, 'run_cycle');
+    showCommandToast(`Test cycle command sent to sensor ${sensorId}!`);
+    if (btnEl) {
+      btnEl.innerText = 'Cycle Dispatched!';
+      btnEl.style.borderColor = '#10b981';
+      btnEl.style.color = '#10b981';
+    }
+    setTimeout(() => {
+      if (btnEl) {
+        btnEl.disabled = false;
+        btnEl.innerText = 'Run Cycle';
+        btnEl.style.borderColor = '';
+        btnEl.style.color = '';
+      }
+    }, 3500);
+  } catch (err) {
+    alert('Failed to dispatch cycle: ' + err.message);
+    if (btnEl) {
+      btnEl.disabled = false;
+      btnEl.innerText = 'Run Cycle';
+    }
+  }
+}
+
+function showCommandToast(message) {
+  const existing = document.getElementById('hub-command-toast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'hub-command-toast';
+  toast.className = 'map-pinning-toast';
+  toast.style.background = '#0a2540';
+  toast.style.borderColor = '#00f2fe';
+  toast.innerHTML = `
+    <span style="display: flex; align-items: center; gap: 8px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00f2fe" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <strong>Command:</strong> ${message}
+    </span>
+  `;
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    if (toast) toast.remove();
+  }, 4000);
+}
+
+window.triggerSensorCycle = triggerSensorCycle;
+window.showCommandToast = showCommandToast;

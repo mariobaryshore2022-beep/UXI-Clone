@@ -445,6 +445,10 @@ function showSensorDrilldown(sensor) {
 
       <!-- Direct Drill-Down Action Buttons -->
       <div class="drawer-action-buttons">
+        <button class="btn btn-secondary drawer-btn-full" onclick="triggerSensorCycle('${sensor.id}', this)" style="border-color: #00f2fe; color: #00f2fe;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Dispatch Immediate Test Cycle
+        </button>
         <button class="btn btn-primary drawer-btn-full" onclick="drillDownToSensorHistory('${sensor.id}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           Drill Down to Sensor History & Metrics

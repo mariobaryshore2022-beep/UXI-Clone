@@ -3,6 +3,7 @@ const config = require('./config');
 const StoreAndForward = require('./storeAndForward');
 const LinuxRunner = require('./platform/linuxRunner');
 const Simulator = require('./platform/simulator');
+const SystemInfo = require('./platform/systemInfo');
 
 class PulseSensorClient {
   constructor(options = {}) {
@@ -15,12 +16,18 @@ class PulseSensorClient {
     this.currentNetworkIndex = 0;
     this.cycleCount = 0;
     this.isRunning = false;
+    this.isCycleExecuting = false;
+
+    // Extract real network and hardware telemetry
+    this.netDetails = SystemInfo.getNetworkDetails();
+    this.hwDetails = SystemInfo.getHardwareDetails();
 
     this.sf = new StoreAndForward(this.serverUrl);
-    this.linuxRunner = new LinuxRunner(config.testInterface, config.managementInterface);
+    this.linuxRunner = new LinuxRunner(this.netDetails.activeInterface, 'eth0');
     this.simulator = new Simulator();
 
     console.log(`[Pulse UX Sensor] Initialized. ID: ${this.sensorId}, Mode: ${this.mode.toUpperCase()}, Simulate: ${this.simulate}`);
+    console.log(`[Pulse UX Sensor] Host: ${this.hwDetails.hostname} (${this.hwDetails.arch}), Interface: ${this.netDetails.activeInterface}, IP: ${this.netDetails.ipAddress}, MAC: ${this.netDetails.macAddress}, Gateway: ${this.netDetails.gateway}`);
   }
 
   async sleep(ms) {
@@ -29,20 +36,32 @@ class PulseSensorClient {
 
   async register() {
     console.log(`[Pulse UX Sensor] Registering sensor with Pulse UX Hub at ${this.serverUrl}...`);
+    // Refresh live IP and memory stats
+    this.netDetails = SystemInfo.getNetworkDetails();
+    this.hwDetails = SystemInfo.getHardwareDetails();
+
     const payload = {
       id: this.sensorId,
       name: this.sensorName,
       mode: this.mode,
-      ip_address: '10.10.30.85',
-      mac_address: 'e4:5f:01:bc:39:10',
-      hardware_model: this.simulate ? 'Intel N100 / AX210 (Simulated)' : 'Intel N100 / AX210 (Ubuntu Linux)',
+      ip_address: this.netDetails.ipAddress,
+      mac_address: this.netDetails.macAddress,
+      hardware_model: this.hwDetails.hardwareModel,
       firmware_version: '2.4.0-pulse',
       hardware_info: {
-        platform: os.platform(),
-        arch: os.arch(),
-        cpus: os.cpus().length,
-        totalmem: `${Math.round(os.totalmem() / (1024 * 1024 * 1024))} GB`,
-        mode: this.mode
+        hostname: this.hwDetails.hostname,
+        platform: this.hwDetails.platform,
+        release: this.hwDetails.release,
+        arch: this.hwDetails.arch,
+        cpu_model: this.hwDetails.cpuModel,
+        cpus: this.hwDetails.cpuCores,
+        totalmem: this.hwDetails.totalMemGb,
+        freemem: this.hwDetails.freeMemMb,
+        uptime_seconds: this.hwDetails.uptimeSeconds,
+        mode: this.mode,
+        active_interface: this.netDetails.activeInterface,
+        gateway: this.netDetails.gateway,
+        dns_servers: this.netDetails.dnsServers
       }
     };
     await this.sf.send('/api/sensors/register', payload);
@@ -135,12 +154,12 @@ class PulseSensorClient {
     await this.reportStage(netName, 'dhcp');
     const dhcpRes = this.simulate
       ? await this.simulator.allocateDhcp()
-      : await this.linuxRunner.allocateDhcp();
+      : await this.linuxRunner.allocateDhcp(this.netDetails.ipAddress);
 
     await this.recordResult(network.id, null, 'dhcp', dhcpRes.success, dhcpRes.durationMs, {
       dhcp_lease_time_ms: dhcpRes.durationMs,
-      ip: dhcpRes.ip || '10.10.30.85',
-      gateway: dhcpRes.gateway || '10.10.30.1'
+      ip: this.netDetails.ipAddress || '192.168.64.4',
+      gateway: this.netDetails.gateway || '192.168.64.1'
     });
 
     if (!dhcpRes.success) {
@@ -151,25 +170,28 @@ class PulseSensorClient {
 
     // 5. Gateway Reachability
     await this.reportStage(netName, 'gateway');
+    const targetGw = this.netDetails.gateway || config.controlHosts.gateway;
     const gwRes = this.simulate
       ? await this.simulator.pingGateway()
-      : await this.linuxRunner.ping(config.controlHosts.gateway, 5);
+      : await this.linuxRunner.ping(targetGw, 3);
 
     await this.recordResult(network.id, 'test-gw-ping', 'gateway', gwRes.success, gwRes.latencyMs, {
       latency_ms: gwRes.latencyMs,
-      packet_loss_pct: gwRes.packetLossPct
+      packet_loss_pct: gwRes.packetLossPct,
+      gateway_ip: targetGw
     });
     await this.sleep(1000);
 
     // 6. Primary DNS
     await this.reportStage(netName, 'primary_dns');
+    const targetDns1 = this.netDetails.dnsServers[0] || config.controlHosts.primaryDns;
     const dns1Res = this.simulate
       ? await this.simulator.resolveDns(config.controlHosts.primaryDns)
-      : { success: true, durationMs: 14 };
+      : await this.linuxRunner.resolveDns('google.com', targetDns1);
 
     await this.recordResult(network.id, 'test-dns-core', 'primary_dns', dns1Res.success, dns1Res.durationMs, {
       dns_lookup_time_ms: dns1Res.durationMs,
-      resolver: config.controlHosts.primaryDns
+      resolver: targetDns1
     });
     if (!dns1Res.success) {
       await this.runTriage(network, 'primary_dns', 'Primary DNS lookup failed');
@@ -178,13 +200,14 @@ class PulseSensorClient {
 
     // 7. Secondary DNS
     await this.reportStage(netName, 'secondary_dns');
+    const targetDns2 = this.netDetails.dnsServers[1] || '1.1.1.1';
     const dns2Res = this.simulate
       ? await this.simulator.resolveDns(config.controlHosts.secondaryDns)
-      : { success: true, durationMs: 19 };
+      : await this.linuxRunner.resolveDns('cloudflare.com', targetDns2);
 
     await this.recordResult(network.id, 'test-dns-sec', 'secondary_dns', dns2Res.success, dns2Res.durationMs, {
       dns_lookup_time_ms: dns2Res.durationMs,
-      resolver: config.controlHosts.secondaryDns
+      resolver: targetDns2
     });
     await this.sleep(1000);
 
@@ -193,10 +216,10 @@ class PulseSensorClient {
       await this.reportStage(netName, 'external_http');
       const extRes = this.simulate
         ? await this.simulator.testExternalHttp()
-        : { success: true, latencyMs: 38, httpStatus: 200 };
+        : await this.linuxRunner.testHttp('https://www.google.com');
 
       await this.recordResult(network.id, null, 'external_http', extRes.success, extRes.latencyMs, {
-        http_status: extRes.httpStatus,
+        http_status: extRes.httpStatus || 200,
         latency_ms: extRes.latencyMs
       });
       await this.sleep(1000);
@@ -256,16 +279,68 @@ class PulseSensorClient {
     console.log(`[Agent Cycle #${this.cycleCount}] Passive test cycle complete.`);
   }
 
+  // 2-Way Command Listener
+  startCommandListener() {
+    console.log(`[Pulse UX Sensor] Starting 2-way command listener against Hub (${this.serverUrl})...`);
+    this.commandPollTimer = setInterval(async () => {
+      if (!this.isRunning) return;
+      try {
+        const data = await this.sf.get(`/api/sensors/${encodeURIComponent(this.sensorId)}/commands/next`);
+        if (data && data.command) {
+          await this.handleIncomingCommand(data.command);
+        }
+      } catch (err) {
+        // Silently tolerate temporary network drops
+      }
+    }, 1800);
+  }
+
+  async handleIncomingCommand(command) {
+    console.log(`\n===============================================================`);
+    console.log(`[OPERATOR COMMAND RECEIVED] Action: ${command.action.toUpperCase()} (Command ID: ${command.id})`);
+    console.log(`===============================================================`);
+
+    if (command.action === 'run_cycle') {
+      if (this.isCycleExecuting) {
+        console.log('[Pulse UX Sensor] Cycle already executing, skipping duplicate trigger.');
+        return;
+      }
+      this.isCycleExecuting = true;
+      try {
+        const network = this.networks[this.currentNetworkIndex];
+        if (this.mode === 'sensor') {
+          await this.runSensorNetworkCycle(network);
+        } else {
+          await this.runAgentCycle();
+        }
+      } finally {
+        this.isCycleExecuting = false;
+      }
+
+      // Acknowledge command completion
+      await this.sf.send(`/api/sensors/${encodeURIComponent(this.sensorId)}/commands/${encodeURIComponent(command.id)}/ack`, {
+        status: 'completed',
+        result: { cycle_count: this.cycleCount, timestamp: new Date().toISOString() }
+      });
+    }
+  }
+
   async start() {
     this.isRunning = true;
     await this.register();
+    this.startCommandListener();
 
     while (this.isRunning) {
       this.cycleCount++;
 
       if (this.mode === 'sensor') {
         const network = this.networks[this.currentNetworkIndex];
-        await this.runSensorNetworkCycle(network);
+        this.isCycleExecuting = true;
+        try {
+          await this.runSensorNetworkCycle(network);
+        } finally {
+          this.isCycleExecuting = false;
+        }
 
         // Advance round-robin to next network
         this.currentNetworkIndex = (this.currentNetworkIndex + 1) % this.networks.length;
@@ -279,6 +354,7 @@ class PulseSensorClient {
 
   stop() {
     this.isRunning = false;
+    if (this.commandPollTimer) clearInterval(this.commandPollTimer);
     console.log('[Pulse UX Sensor] Stopping sensor service.');
   }
 }
