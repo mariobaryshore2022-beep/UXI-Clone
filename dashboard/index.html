@@ -803,7 +803,7 @@
             </div>
             <button class="btn btn-primary" onclick="openTestEditorModal()" style="font-size: 0.75rem; padding: 0.35rem 0.85rem; display: flex; align-items: center; gap: 6px;">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              + Add Synthetic Test
+              Add Synthetic Test
             </button>
           </div>
           <div class="table-container">
@@ -909,8 +909,13 @@
 
           <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 1rem;">
             <div class="form-group">
-              <label for="input-test-target" style="font-size: 0.78rem; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 6px; text-transform: uppercase;">Target (Host / URL / IP)</label>
-              <input type="text" id="input-test-target" class="config-input" placeholder="e.g. https://www.google.com or 1.1.1.1" required style="width: 100%;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label for="input-test-target" style="font-size: 0.78rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin: 0;">Target (Host / URL / IP)</label>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="setTestTargetToGateway()" style="padding: 2px 8px; font-size: 0.68rem; color: #00f2fe; border-color: rgba(0, 242, 254, 0.4); background: rgba(0, 242, 254, 0.08);" title="Use the sensor's dynamically discovered default gateway">
+                  🎯 Use Sensor Gateway
+                </button>
+              </div>
+              <input type="text" id="input-test-target" class="config-input" placeholder="e.g. default_gateway, https://google.com, 1.1.1.1" required style="width: 100%;">
             </div>
             <div class="form-group">
               <label for="input-test-port" style="font-size: 0.78rem; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 6px; text-transform: uppercase;">Port</label>

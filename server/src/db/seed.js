@@ -26,7 +26,7 @@ async function seedData() {
     await query(`
       INSERT INTO test_definitions (id, name, template, target, port, is_external, interval_seconds, thresholds)
       VALUES
-      ('test-gw-ping', 'Default Gateway Ping', 'generic_tcp', '10.10.30.1', 0, false, 60, '{"max_latency_ms": 15, "max_packet_loss_pct": 2}'::jsonb),
+      ('test-gw-ping', 'Default Gateway Ping', 'generic_tcp', 'default_gateway', 0, false, 60, '{"max_latency_ms": 15, "max_packet_loss_pct": 2}'::jsonb),
       ('test-dns-core', 'Primary DNS (Infoblox Core)', 'dns_resolution', '10.10.1.10', 53, false, 60, '{"max_dns_ms": 60}'::jsonb),
       ('test-dns-sec', 'Secondary DNS (Google 8.8.8.8)', 'dns_resolution', '8.8.8.8', 53, true, 120, '{"max_dns_ms": 80}'::jsonb),
       ('test-voip-teams', 'Microsoft Teams VoIP Call', 'voip_mos', 'worldaz.tr.teams.microsoft.com', 443, true, 180, '{"min_mos": 3.8, "max_jitter_ms": 15, "max_latency_ms": 120}'::jsonb),
@@ -35,6 +35,13 @@ async function seedData() {
       ('test-iperf-core', 'Branch Throughput Benchmark', 'iperf3', 'iperf.corp.internal', 5201, false, 600, '{"min_throughput_mbps": 75}'::jsonb)
     `);
   }
+
+  // Ensure default gateway test targets sensor default gateway dynamically
+  await query(`
+    UPDATE test_definitions 
+    SET target = 'default_gateway' 
+    WHERE id = 'test-gw-ping' OR (name ILIKE '%Default Gateway%' AND target = '10.10.30.1')
+  `);
 
   // Ensure simple_view_items table exists
   await query(`

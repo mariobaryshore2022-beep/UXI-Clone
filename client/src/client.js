@@ -283,7 +283,15 @@ class PulseSensorClient {
   // Execute an individual synthetic test definition (live Linux execution or simulated)
   async executeTest(networkId, test) {
     const template = test.template || 'webserver';
-    const target = test.target;
+    let target = test.target;
+
+    // Dynamically resolve target to sensor default gateway
+    if (target === 'default_gateway' || target === 'gateway' || target === '$GATEWAY' || test.id === 'test-gw-ping' || target === '10.10.30.1') {
+      const sensorGw = this.netDetails.gateway || (config.controlHosts && config.controlHosts.gateway) || '192.168.64.1';
+      console.log(`[Pulse UX Sensor] Dynamic Target: Resolving '${test.name}' to sensor default gateway: ${sensorGw}`);
+      target = sensorGw;
+    }
+
     let res = { success: true, durationMs: 40, metrics: {} };
 
     console.log(`[Pulse UX Sensor] Executing test '${test.name}' [${template}] -> ${target}`);

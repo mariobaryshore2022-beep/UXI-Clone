@@ -436,11 +436,19 @@ async function loadTestsConfig() {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">No synthetic tests configured. Click "+ Add Synthetic Test" above.</td></tr>`;
         return;
       }
-      tbody.innerHTML = allTestsConfig.map(t => `
+      tbody.innerHTML = allTestsConfig.map(t => {
+        let targetDisplay = `${t.target}${t.port ? ':' + t.port : ''}`;
+        if (t.target === 'default_gateway' || t.target === 'gateway' || t.target === '$GATEWAY' || t.id === 'test-gw-ping') {
+          targetDisplay = `<span class="badge badge-emerald-outline" style="font-size:0.75rem; letter-spacing:0; padding: 2px 8px; display: inline-flex; align-items: center;" title="Evaluated dynamically against each sensor's active default gateway">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Sensor Gateway (Dynamic)
+          </span>`;
+        }
+        return `
         <tr id="row-test-${t.id}">
           <td><strong>${t.name}</strong></td>
           <td><span class="badge badge-cyan-outline">${t.template.toUpperCase()}</span></td>
-          <td style="font-family: var(--font-mono); font-size: 0.78rem;">${t.target}${t.port ? ':' + t.port : ''}</td>
+          <td style="font-family: var(--font-mono); font-size: 0.78rem;">${targetDisplay}</td>
           <td>${t.interval_seconds}s</td>
           <td style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-secondary);">
             ${JSON.stringify(t.thresholds || {})}
@@ -452,7 +460,8 @@ async function loadTestsConfig() {
             </div>
           </td>
         </tr>
-      `).join('');
+      `;
+      }).join('');
     }
   } catch (err) {
     console.error('Failed to load tests config:', err);
@@ -566,6 +575,18 @@ function closeTestEditorModal() {
   const modal = document.getElementById('modal-test-editor');
   if (modal) modal.style.display = 'none';
 }
+
+function setTestTargetToGateway() {
+  const inputTarget = document.getElementById('input-test-target');
+  const inputPort = document.getElementById('input-test-port');
+  const inputTemplate = document.getElementById('input-test-template');
+  const inputName = document.getElementById('input-test-name');
+  if (inputTarget) inputTarget.value = 'default_gateway';
+  if (inputPort) inputPort.value = '0';
+  if (inputTemplate) inputTemplate.value = 'generic_tcp';
+  if (inputName && !inputName.value) inputName.value = 'Sensor Default Gateway Ping';
+}
+window.setTestTargetToGateway = setTestTargetToGateway;
 
 async function handleTestEditorSubmit(e) {
   e.preventDefault();

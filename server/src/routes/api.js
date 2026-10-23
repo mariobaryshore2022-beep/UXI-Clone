@@ -442,6 +442,24 @@ router.post('/telemetry/results', async (req, res) => {
   try {
     const { sensor_id, network_id, test_id, stage, success, duration_ms, metrics, error_message } = req.body;
 
+    // Ensure sensor exists
+    if (sensor_id) {
+      await query(`
+        INSERT INTO sensors (id, name, status, last_seen)
+        VALUES ($1, $1, 'online', NOW())
+        ON CONFLICT (id) DO UPDATE SET last_seen = NOW()
+      `, [sensor_id]);
+    }
+
+    // Ensure network exists if provided
+    if (network_id) {
+      await query(`
+        INSERT INTO networks (id, name, type)
+        VALUES ($1, $1, 'ethernet')
+        ON CONFLICT (id) DO NOTHING
+      `, [network_id]);
+    }
+
     const result = await query(`
       INSERT INTO test_results (sensor_id, network_id, test_id, stage, success, duration_ms, metrics, error_message)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
