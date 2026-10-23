@@ -895,8 +895,10 @@
   height: 120px;
   border-radius: 50%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  position: relative;
   transition: transform 0.25s ease, background 0.3s ease, box-shadow 0.3s ease;
   cursor: pointer;
 }
@@ -907,17 +909,36 @@
 
 .circle-good {
   background: #65c18c;
-  box-shadow: 0 10px 25px rgba(101, 193, 140, 0.35);
+  box-shadow: 0 0 0 4px #18191c, 0 0 0 6px #65c18c, 0 10px 25px rgba(101, 193, 140, 0.4);
 }
 
 .circle-bad {
   background: #e76f51;
-  box-shadow: 0 10px 25px rgba(231, 111, 81, 0.4);
+  box-shadow: 0 0 0 4px #18191c, 0 0 0 6px #e76f51, 0 10px 28px rgba(231, 111, 81, 0.45);
 }
 
 .circle-degraded {
   background: #f39c12;
-  box-shadow: 0 10px 25px rgba(243, 156, 18, 0.35);
+  box-shadow: 0 0 0 4px #18191c, 0 0 0 6px #f39c12, 0 10px 25px rgba(243, 156, 18, 0.4);
+}
+
+.circle-click-more {
+  position: absolute;
+  bottom: 11px;
+  font-size: 0.67rem;
+  font-style: italic;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.88);
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.pillar-avatar-circle:hover .circle-click-more {
+  color: #ffffff;
+  transform: translateY(-1px);
+  text-decoration: underline;
 }
 
 .pillar-svg-icon {
@@ -1242,6 +1263,222 @@
 
 .simple-pillar-item.active-hovered .item-name {
   color: #ffffff;
+}
+
+/* ==========================================================================
+   Pulse UX Simple View - Authentic Pillar Summary Card (Avatar Circle Hover)
+   ========================================================================== */
+.pillar-summary-card {
+  position: fixed;
+  z-index: 100000;
+  width: 470px;
+  background: #18191c;
+  border: 1px solid #2e3036;
+  border-left: 3.5px solid #e76f51; /* Dynamic status color */
+  border-radius: 4px;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.9), 0 4px 12px rgba(0, 0, 0, 0.5);
+  color: #e2e8f0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  pointer-events: auto;
+  user-select: none;
+  display: none;
+}
+
+.pillar-summary-card.visible {
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.psc-header {
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid #27292f;
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.psc-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.psc-counts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #ffffff;
+  font-family: var(--font-mono, monospace);
+}
+
+.psc-divider {
+  color: #475569;
+}
+
+.psc-dot-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+}
+
+.psc-dot {
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.psc-dot.dot-red { color: #e76f51; }
+.psc-dot.dot-blue { color: #4f75ff; }
+.psc-dot.dot-green { color: #65c18c; }
+.psc-dot.dot-gray { color: #64748b; }
+
+.psc-section {
+  padding: 12px 16px;
+  border-bottom: 1px solid #27292f;
+}
+
+.psc-table-header {
+  display: grid;
+  grid-template-columns: 140px 110px 1fr;
+  align-items: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #8e929b;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+}
+
+.psc-table-header .col-now {
+  text-align: center;
+}
+
+.psc-table-header .col-hist {
+  text-align: right;
+  padding-right: 4px;
+}
+
+.psc-table-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.psc-row {
+  display: grid;
+  grid-template-columns: 140px 110px 1fr;
+  align-items: center;
+  font-size: 0.76rem;
+  padding: 2px 0;
+}
+
+.psc-row-name {
+  color: #e2e8f0;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.psc-row-now {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.psc-now-count {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  font-family: var(--font-mono, monospace);
+  width: 14px;
+  text-align: right;
+}
+
+.psc-bar-track {
+  width: 58px;
+  height: 4px;
+  background: #282b34;
+  border-radius: 2px;
+  overflow: hidden;
+  display: flex;
+}
+
+.psc-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+}
+
+.psc-sparkline {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 2px;
+  height: 18px;
+}
+
+.psc-spark-bar {
+  width: 3px;
+  border-radius: 1px 1px 0 0;
+}
+
+/* Ongoing Section */
+.psc-ongoing-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.psc-ongoing-label {
+  color: #cbd5e1;
+}
+
+.psc-issues-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.psc-issue-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.74rem;
+  gap: 10px;
+}
+
+.psc-issue-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.psc-issue-scope {
+  color: #8e929b;
+  font-size: 0.72rem;
+  font-family: var(--font-mono, monospace);
+  flex-shrink: 0;
+}
+
+.psc-more-issues {
+  font-size: 0.72rem;
+  color: #8e929b;
+  padding-top: 4px;
+  font-style: italic;
 }
 
 /* Pulse UX Simple Footer */

@@ -126,12 +126,13 @@
           <!-- 1. Experience Column -->
           <div class="pulse-pillar-col" id="pillar-col-experience">
             <div class="pillar-avatar-wrapper">
-              <div class="pillar-avatar-circle circle-bad" id="simple-circle-experience" title="End-User Experience Perception">
+              <div class="pillar-avatar-circle circle-bad" id="simple-circle-experience" data-pillar="experience">
                 <svg id="simple-face-svg" class="pillar-svg-icon" viewBox="0 0 100 100">
                   <circle cx="36" cy="38" r="4.5" fill="#ffffff" />
                   <circle cx="64" cy="38" r="4.5" fill="#ffffff" />
                   <path d="M 32 66 Q 50 48 68 66" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" />
                 </svg>
+                <span class="circle-click-more">Click for more</span>
               </div>
               <span class="pillar-number-badge badge-1">1</span>
             </div>
@@ -145,7 +146,7 @@
           <!-- 2. Services Column -->
           <div class="pulse-pillar-col" id="pillar-col-services">
             <div class="pillar-avatar-wrapper">
-              <div class="pillar-avatar-circle circle-bad" id="simple-circle-services" title="Core Network Infrastructure Services">
+              <div class="pillar-avatar-circle circle-bad" id="simple-circle-services" data-pillar="services">
                 <svg class="pillar-svg-icon" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
                   <polygon points="50,18 84,34 50,50 16,34" fill="rgba(255,255,255,0.15)" stroke="#ffffff"/>
                   <polyline points="16,48 50,64 84,48" stroke="#ffffff"/>
@@ -153,6 +154,7 @@
                   <circle cx="50" cy="80" r="3" fill="#ffffff"/>
                   <line x1="50" y1="83" x2="50" y2="90" stroke="#ffffff"/>
                 </svg>
+                <span class="circle-click-more">Click for more</span>
               </div>
             </div>
             <h3 class="pillar-col-title">Services</h3>
@@ -165,10 +167,11 @@
           <!-- 3. Internal Column -->
           <div class="pulse-pillar-col" id="pillar-col-internal">
             <div class="pillar-avatar-wrapper">
-              <div class="pillar-avatar-circle circle-bad" id="simple-circle-internal" title="Internal Enterprise Applications & Targets">
+              <div class="pillar-avatar-circle circle-bad" id="simple-circle-internal" data-pillar="internal">
                 <svg class="pillar-svg-icon" viewBox="0 0 100 100" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
                   <polygon points="50,15 61,38 86,40 67,58 73,83 50,70 27,83 33,58 14,40 39,38" fill="rgba(255,255,255,0.15)"/>
                 </svg>
+                <span class="circle-click-more">Click for more</span>
               </div>
             </div>
             <h3 class="pillar-col-title">Internal</h3>
@@ -181,10 +184,11 @@
           <!-- 4. External Column -->
           <div class="pulse-pillar-col" id="pillar-col-external">
             <div class="pillar-avatar-wrapper">
-              <div class="pillar-avatar-circle circle-good" id="simple-circle-external" title="External SaaS & Cloud Services">
+              <div class="pillar-avatar-circle circle-good" id="simple-circle-external" data-pillar="external">
                 <svg class="pillar-svg-icon" viewBox="0 0 100 100" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M28 68 H74 A16 16 0 0 0 76 36 A22 22 0 0 0 34 38 A16 16 0 0 0 28 68 Z" fill="rgba(255,255,255,0.15)"/>
                 </svg>
+                <span class="circle-click-more">Click for more</span>
               </div>
               <span class="pillar-number-badge badge-2">2</span>
             </div>
@@ -1226,6 +1230,48 @@
       </div>
       <div class="shc-values-grid" id="shc-values-grid">
         <!-- 2-column key-values populated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Pulse UX Simple View Authentic Pillar Summary Card (Avatar Circle Hover) -->
+  <div id="pillar-summary-card" class="pillar-summary-card" style="display: none;">
+    <!-- Top Header -->
+    <div class="psc-header">
+      <span class="psc-title" id="psc-title">All Sensors</span>
+      <div class="psc-counts" id="psc-counts">
+        <span class="psc-total" id="psc-total-count">37</span>
+        <span class="psc-divider">|</span>
+        <span class="psc-dot-group">
+          <span class="psc-dot dot-red">●</span> <span id="psc-count-red">1</span>
+          <span class="psc-dot dot-blue">●</span> <span id="psc-count-blue">14</span>
+          <span class="psc-dot dot-green">●</span> <span id="psc-count-green">2</span>
+          <span class="psc-dot dot-gray">●</span> <span id="psc-count-gray">20</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- Section 1: Breakdown Table (GROUPS / SERVICES / APPS) -->
+    <div class="psc-section psc-table-section">
+      <div class="psc-table-header">
+        <span class="col-name" id="psc-col-name">GROUPS</span>
+        <span class="col-now" id="psc-col-now">SENSORS NOW</span>
+        <span class="col-hist" id="psc-col-hist">LAST 24H</span>
+      </div>
+      <div class="psc-table-body" id="psc-table-body">
+        <!-- Rows populated dynamically via simpleView.js -->
+      </div>
+    </div>
+
+    <!-- Section 2: Ongoing Issues List -->
+    <div class="psc-section psc-ongoing-section">
+      <div class="psc-ongoing-header">
+        <span class="psc-ongoing-label">ONGOING</span>
+        <span class="psc-dot dot-red">●</span> <span id="psc-ongoing-crit-count">4</span>
+        <span class="psc-dot dot-blue">●</span> <span id="psc-ongoing-warn-count">188</span>
+      </div>
+      <div class="psc-issues-list" id="psc-issues-list">
+        <!-- Issue items populated dynamically via simpleView.js -->
       </div>
     </div>
   </div>

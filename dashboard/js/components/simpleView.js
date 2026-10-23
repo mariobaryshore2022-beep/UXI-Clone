@@ -443,6 +443,8 @@ async function loadArubaPresetItems() {
 
 let hoverTimeout = null;
 let currentHoveredItemEl = null;
+let pillarHoverTimeout = null;
+let currentHoveredCircleEl = null;
 
 function bindSimpleItemHoverEvents(evaluatedItems, currentData) {
   // Store globally so delegated listener can look up items at any time
@@ -461,8 +463,9 @@ function setupGlobalSimpleViewHoverListeners() {
   window.__simpleViewHoverSetup = true;
 
   const hovercard = document.getElementById('simple-item-hovercard');
+  const pillarSummaryCard = document.getElementById('pillar-summary-card');
 
-  // Keep hovercard open when pointer moves inside the card
+  // Keep item hovercard open when pointer moves inside the card
   if (hovercard) {
     hovercard.addEventListener('mouseenter', () => {
       if (hoverTimeout) {
@@ -478,10 +481,28 @@ function setupGlobalSimpleViewHoverListeners() {
     });
   }
 
-  // 1. Mouseover Event Delegation (captures hover across all current and future pillar items)
+  // Keep pillar summary card open when pointer moves inside the card
+  if (pillarSummaryCard) {
+    pillarSummaryCard.addEventListener('mouseenter', () => {
+      if (pillarHoverTimeout) {
+        clearTimeout(pillarHoverTimeout);
+        pillarHoverTimeout = null;
+      }
+    });
+    pillarSummaryCard.addEventListener('mouseleave', () => {
+      if (pillarHoverTimeout) clearTimeout(pillarHoverTimeout);
+      pillarHoverTimeout = setTimeout(() => {
+        hidePillarSummaryCard();
+      }, 160);
+    });
+  }
+
+  // 1. Mouseover Event Delegation (captures hover across pillar items and avatar circles)
   document.addEventListener('mouseover', (e) => {
     const itemEl = e.target.closest('.simple-pillar-item');
+    const circleEl = e.target.closest('.pillar-avatar-circle');
     const card = document.getElementById('simple-item-hovercard');
+    const pCard = document.getElementById('pillar-summary-card');
 
     if (card && (card === e.target || card.contains(e.target))) {
       if (hoverTimeout) {
@@ -491,11 +512,37 @@ function setupGlobalSimpleViewHoverListeners() {
       return;
     }
 
+    if (pCard && (pCard === e.target || pCard.contains(e.target))) {
+      if (pillarHoverTimeout) {
+        clearTimeout(pillarHoverTimeout);
+        pillarHoverTimeout = null;
+      }
+      return;
+    }
+
+    // A. Circle Avatar Hover (Pillar Summary Card)
+    if (circleEl) {
+      if (pillarHoverTimeout) {
+        clearTimeout(pillarHoverTimeout);
+        pillarHoverTimeout = null;
+      }
+      hideHoverCard();
+      if (currentHoveredCircleEl === circleEl && pCard && pCard.classList.contains('visible')) {
+        return;
+      }
+      currentHoveredCircleEl = circleEl;
+      const pillar = circleEl.getAttribute('data-pillar') || 'experience';
+      showPillarSummaryCard(circleEl, pillar, window.__lastSimpleData || {});
+      return;
+    }
+
+    // B. Individual Monitored Item Hover (Item Metric Card)
     if (itemEl) {
       if (hoverTimeout) {
         clearTimeout(hoverTimeout);
         hoverTimeout = null;
       }
+      hidePillarSummaryCard();
       if (currentHoveredItemEl === itemEl && card && card.classList.contains('visible')) {
         return;
       }
@@ -511,40 +558,79 @@ function setupGlobalSimpleViewHoverListeners() {
 
   // 2. Mouseout Event Delegation
   document.addEventListener('mouseout', (e) => {
-    const fromEl = e.target.closest('.simple-pillar-item');
-    const toEl = e.relatedTarget ? e.relatedTarget.closest('.simple-pillar-item') : null;
+    const fromItem = e.target.closest('.simple-pillar-item');
+    const toItem = e.relatedTarget ? e.relatedTarget.closest('.simple-pillar-item') : null;
     const card = document.getElementById('simple-item-hovercard');
     const isToCard = card && e.relatedTarget && (card === e.relatedTarget || card.contains(e.relatedTarget));
 
-    if (fromEl && fromEl !== toEl && !isToCard) {
+    if (fromItem && fromItem !== toItem && !isToCard) {
       if (hoverTimeout) clearTimeout(hoverTimeout);
       hoverTimeout = setTimeout(() => {
         hideHoverCard();
       }, 150);
     }
+
+    const fromCircle = e.target.closest('.pillar-avatar-circle');
+    const toCircle = e.relatedTarget ? e.relatedTarget.closest('.pillar-avatar-circle') : null;
+    const pCard = document.getElementById('pillar-summary-card');
+    const isToPCard = pCard && e.relatedTarget && (pCard === e.relatedTarget || pCard.contains(e.relatedTarget));
+
+    if (fromCircle && fromCircle !== toCircle && !isToPCard) {
+      if (pillarHoverTimeout) clearTimeout(pillarHoverTimeout);
+      pillarHoverTimeout = setTimeout(() => {
+        hidePillarSummaryCard();
+      }, 160);
+    }
   });
 
-  // 3. Click support: clicking an item toggles or locks the hovercard!
+  // 3. Click support: clicking circle switches tab; clicking item toggles or locks hovercard
   document.addEventListener('click', (e) => {
+    const circleEl = e.target.closest('.pillar-avatar-circle');
     const itemEl = e.target.closest('.simple-pillar-item');
     const card = document.getElementById('simple-item-hovercard');
+    const pCard = document.getElementById('pillar-summary-card');
+
+    if (circleEl) {
+      e.stopPropagation();
+      const pillar = circleEl.getAttribute('data-pillar') || 'experience';
+      hidePillarSummaryCard();
+      const tabMap = {
+        experience: 'tab-sensors',
+        services: 'tab-triage',
+        internal: 'tab-config',
+        external: 'tab-config'
+      };
+      if (window.activateTab && tabMap[pillar]) {
+        window.activateTab(tabMap[pillar]);
+      }
+      return;
+    }
 
     if (itemEl) {
       e.stopPropagation();
+      hidePillarSummaryCard();
       currentHoveredItemEl = itemEl;
       document.querySelectorAll('.simple-pillar-item').forEach(i => i.classList.remove('active-hovered'));
       itemEl.classList.add('active-hovered');
 
       const item = resolveHoverItem(itemEl);
       showItemHoverCard(itemEl, item, window.__lastSimpleData || {});
-    } else if (card && !card.contains(e.target)) {
-      hideHoverCard();
+    } else {
+      if (card && !card.contains(e.target)) {
+        hideHoverCard();
+      }
+      if (pCard && !pCard.contains(e.target)) {
+        hidePillarSummaryCard();
+      }
     }
   });
 
   // 4. Dismissible via Escape key (WCAG 1.4.13)
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') hideHoverCard();
+    if (e.key === 'Escape') {
+      hideHoverCard();
+      hidePillarSummaryCard();
+    }
   });
 }
 
@@ -902,4 +988,342 @@ window.toggleSimpleItemStatus = toggleSimpleItemStatus;
 window.deleteSimpleItem = deleteSimpleItem;
 window.resetSimpleViewDefaults = resetSimpleViewDefaults;
 window.loadArubaPresetItems = loadArubaPresetItems;
+
+// ============================================================================
+// Authentic Pillar Summary Card (Avatar Circle Hover Popover)
+// ============================================================================
+
+function hidePillarSummaryCard() {
+  const pCard = document.getElementById('pillar-summary-card');
+  if (pCard) {
+    pCard.classList.remove('visible');
+    pCard.style.display = 'none';
+    pCard.style.visibility = 'hidden';
+  }
+  currentHoveredCircleEl = null;
+}
+
+function showPillarSummaryCard(circleEl, pillar, currentData) {
+  const pCard = document.getElementById('pillar-summary-card');
+  if (!pCard) return;
+
+  const data = generatePillarSummaryData(pillar, currentData);
+
+  // Status left border accent
+  pCard.style.borderLeftColor = data.accentColor;
+
+  // Header Title & Counts
+  const titleEl = document.getElementById('psc-title');
+  if (titleEl) titleEl.innerText = data.title;
+
+  const totalEl = document.getElementById('psc-total-count');
+  if (totalEl) totalEl.innerText = data.counts.total;
+
+  const redEl = document.getElementById('psc-count-red');
+  if (redEl) redEl.innerText = data.counts.red;
+
+  const blueEl = document.getElementById('psc-count-blue');
+  if (blueEl) blueEl.innerText = data.counts.blue;
+
+  const greenEl = document.getElementById('psc-count-green');
+  if (greenEl) greenEl.innerText = data.counts.green;
+
+  const grayEl = document.getElementById('psc-count-gray');
+  if (grayEl) grayEl.innerText = data.counts.gray;
+
+  // Table Column Headers
+  const colName = document.getElementById('psc-col-name');
+  if (colName) colName.innerText = data.columns.name;
+
+  const colNow = document.getElementById('psc-col-now');
+  if (colNow) colNow.innerText = data.columns.now;
+
+  const colHist = document.getElementById('psc-col-hist');
+  if (colHist) colHist.innerText = data.columns.hist;
+
+  // Table Rows Body
+  const tableBody = document.getElementById('psc-table-body');
+  if (tableBody) {
+    tableBody.innerHTML = data.rows.map(row => {
+      let trackInnerHtml = '';
+      if (Array.isArray(row.barSegments)) {
+        trackInnerHtml = row.barSegments.map(seg =>
+          `<div class="psc-bar-fill" style="width: ${seg.width}%; background: ${seg.color};"></div>`
+        ).join('');
+      } else {
+        trackInnerHtml = `<div class="psc-bar-fill" style="width: 100%; background: ${row.barColor || '#4f75ff'};"></div>`;
+      }
+
+      return `
+        <div class="psc-row">
+          <span class="psc-row-name" title="${row.name}">${row.name}</span>
+          <div class="psc-row-now">
+            <span class="psc-now-count">${row.count}</span>
+            <div class="psc-bar-track">
+              ${trackInnerHtml}
+            </div>
+          </div>
+          <div class="psc-sparkline">
+            ${renderPscSparkline(row.sparkPattern)}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Ongoing Issues Header & List
+  const critCountEl = document.getElementById('psc-ongoing-crit-count');
+  if (critCountEl) critCountEl.innerText = data.ongoing.critCount;
+
+  const warnCountEl = document.getElementById('psc-ongoing-warn-count');
+  if (warnCountEl) warnCountEl.innerText = data.ongoing.warnCount;
+
+  const issuesList = document.getElementById('psc-issues-list');
+  if (issuesList) {
+    let issuesHtml = data.ongoing.issues.map(iss => `
+      <div class="psc-issue-item">
+        <div class="psc-issue-left">
+          <span class="psc-dot dot-${iss.color}">●</span>
+          <span>${iss.name}</span>
+        </div>
+        <span class="psc-issue-scope">${iss.scope}</span>
+      </div>
+    `).join('');
+
+    if (data.ongoing.moreIssues) {
+      issuesHtml += `<div class="psc-more-issues">${data.ongoing.moreIssues}</div>`;
+    }
+    issuesList.innerHTML = issuesHtml;
+  }
+
+  // Position and display
+  pCard.style.display = 'block';
+  pCard.style.visibility = 'visible';
+  pCard.style.opacity = '1';
+
+  const rect = circleEl.getBoundingClientRect();
+  const cardWidth = 470;
+  const cardHeight = pCard.offsetHeight || 390;
+
+  // Position adjacent to circle
+  let left = rect.right + 16;
+  let top = rect.top;
+
+  // Flip inline to left if overflowing viewport right edge
+  if (left + cardWidth > window.innerWidth - 12) {
+    left = Math.max(10, rect.left - cardWidth - 16);
+  }
+
+  // Push upwards if overflowing bottom edge
+  if (top + cardHeight > window.innerHeight - 10) {
+    top = Math.max(10, window.innerHeight - cardHeight - 10);
+  }
+  if (top < 10) top = 10;
+
+  pCard.style.left = `${Math.round(left)}px`;
+  pCard.style.top = `${Math.round(top)}px`;
+  pCard.classList.add('visible');
+}
+
+function renderPscSparkline(pattern) {
+  const bars = [];
+  const barCount = 28;
+  for (let i = 0; i < barCount; i++) {
+    let color = '#4f75ff';
+    let h = 4;
+    if (pattern === 'emea') {
+      const isRed = (i >= 0 && i <= 3) || (i >= 12 && i <= 15) || (i >= 22 && i <= 24);
+      color = isRed ? '#e76f51' : '#4f75ff';
+      h = isRed ? (12 + (i % 3) * 2) : (7 + (i % 4) * 2);
+    } else if (pattern === 'na') {
+      const isRed = (i % 5 === 0);
+      color = isRed ? '#e76f51' : '#4f75ff';
+      h = (i % 2 === 0) ? 6 : 4;
+    } else if (pattern === 'apj') {
+      const isRed = (i % 4 === 0);
+      color = isRed ? '#e76f51' : '#4f75ff';
+      h = 5;
+    } else if (pattern === '6e') {
+      color = '#4f75ff';
+      h = (i < 20) ? 5 : 2;
+    } else if (pattern === 'laptops') {
+      const isRed = (i >= 2 && i <= 7) || (i >= 16 && i <= 19);
+      color = isRed ? '#e76f51' : (i < 22 ? '#4f75ff' : '#282b34');
+      h = isRed ? 7 : 5;
+    } else if (pattern === 'android') {
+      color = (i >= 6 && i <= 12) ? '#4f75ff' : '#65c18c';
+      h = 4;
+    } else if (pattern === 'staging') {
+      color = '#475569';
+      h = 3;
+    } else if (pattern === 'red') {
+      color = (i % 2 === 0) ? '#e76f51' : '#4f75ff';
+      h = (i % 3 === 0) ? 12 : 6;
+    } else if (pattern === 'green') {
+      color = '#65c18c';
+      h = (i % 4 === 0) ? 8 : 4;
+    } else {
+      color = '#4f75ff';
+      h = (i % 3 === 0) ? 8 : 4;
+    }
+    bars.push(`<div class="psc-spark-bar" style="height: ${h}px; background: ${color};"></div>`);
+  }
+  return bars.join('');
+}
+
+function generatePillarSummaryData(pillar, currentData) {
+  if (pillar === 'experience') {
+    return {
+      title: 'All Sensors',
+      accentColor: '#e76f51',
+      counts: {
+        total: 37,
+        red: 1,
+        blue: 14,
+        green: 2,
+        gray: 20
+      },
+      columns: {
+        name: 'GROUPS',
+        now: 'SENSORS NOW',
+        hist: 'LAST 24H'
+      },
+      rows: [
+        { name: 'EMEA', count: 7, barColor: '#4f75ff', sparkPattern: 'emea' },
+        { name: 'North America', count: 7, barColor: '#4f75ff', sparkPattern: 'na' },
+        { name: 'APJ', count: 3, barColor: '#4f75ff', sparkPattern: 'apj' },
+        { name: '6E sensor', count: 1, barColor: '#4f75ff', sparkPattern: '6e' },
+        {
+          name: 'Laptop Agents',
+          count: 10,
+          barSegments: [
+            { width: 18, color: '#e76f51' },
+            { width: 82, color: '#4f75ff' }
+          ],
+          sparkPattern: 'laptops'
+        },
+        { name: 'Android Agents', count: 6, barColor: '#65c18c', sparkPattern: 'android' },
+        { name: 'staging', count: 3, barColor: '#64748b', sparkPattern: 'staging' }
+      ],
+      ongoing: {
+        critCount: 4,
+        warnCount: 188,
+        issues: [
+          { name: 'Unexpected HTTPS status code', scope: '2 Sensors  2 Networks', color: 'red' },
+          { name: 'Unexpected HTTP status code', scope: '2 Sensors  2 Networks', color: 'red' },
+          { name: 'SSL error', scope: '26 Sensors  33 Networks', color: 'blue' },
+          { name: 'SSL error', scope: '26 Sensors  33 Networks', color: 'blue' },
+          { name: 'High latency', scope: '16 Sensors  20 Networks', color: 'blue' }
+        ],
+        moreIssues: '... 14 other issues'
+      }
+    };
+  }
+
+  if (pillar === 'services') {
+    return {
+      title: 'All Services',
+      accentColor: '#e76f51',
+      counts: {
+        total: 16,
+        red: 1,
+        blue: 3,
+        green: 11,
+        gray: 1
+      },
+      columns: {
+        name: 'SERVICES',
+        now: 'STATUS NOW',
+        hist: 'LAST 24H'
+      },
+      rows: [
+        { name: 'Wi-Fi 6E Associator', count: 3, barColor: '#4f75ff', sparkPattern: 'blue' },
+        { name: 'Ethernet Interface', count: 1, barColor: '#65c18c', sparkPattern: 'green' },
+        { name: 'DHCPv4 (DORA Handshake)', count: 1, barColor: '#e76f51', sparkPattern: 'red' },
+        { name: 'Default Gateway (192.168.1.1)', count: 4, barColor: '#4f75ff', sparkPattern: 'blue' },
+        { name: 'Corporate DNS (AD DNS)', count: 4, barColor: '#65c18c', sparkPattern: 'green' },
+        { name: 'Public DNS (1.1.1.1 / 8.8.8.8)', count: 3, barColor: '#65c18c', sparkPattern: 'green' }
+      ],
+      ongoing: {
+        critCount: 1,
+        warnCount: 3,
+        issues: [
+          { name: 'DHCP lease negotiation timeout (>2000ms)', scope: '1 Sensor  1 Network', color: 'red' },
+          { name: 'Corporate DNS resolution latency elevated', scope: '2 Sensors  2 Networks', color: 'blue' },
+          { name: 'Default Gateway ICMP packet loss detected', scope: '1 Sensor  1 Network', color: 'blue' }
+        ],
+        moreIssues: null
+      }
+    };
+  }
+
+  if (pillar === 'internal') {
+    return {
+      title: 'All Internal Applications',
+      accentColor: '#e76f51',
+      counts: {
+        total: 12,
+        red: 1,
+        blue: 2,
+        green: 8,
+        gray: 1
+      },
+      columns: {
+        name: 'APPLICATIONS',
+        now: 'HEALTH NOW',
+        hist: 'LAST 24H'
+      },
+      rows: [
+        { name: 'Bayshore EHR Patient Portal', count: 3, barColor: '#e76f51', sparkPattern: 'red' },
+        { name: 'Clinical PACS Imaging DICOM', count: 2, barColor: '#4f75ff', sparkPattern: 'blue' },
+        { name: 'Active Directory Kerberos', count: 2, barColor: '#65c18c', sparkPattern: 'green' },
+        { name: 'Intranet Core API', count: 3, barColor: '#65c18c', sparkPattern: 'green' },
+        { name: 'iPerf3 Bandwidth Server', count: 2, barColor: '#65c18c', sparkPattern: 'green' }
+      ],
+      ongoing: {
+        critCount: 1,
+        warnCount: 2,
+        issues: [
+          { name: 'EHR Patient Portal 504 Gateway Timeout', scope: '1 Sensor  2 Networks', color: 'red' },
+          { name: 'PACS DICOM latency threshold breached (>300ms)', scope: '2 Sensors  2 Networks', color: 'blue' }
+        ],
+        moreIssues: null
+      }
+    };
+  }
+
+  // External (Cloud & SaaS)
+  return {
+    title: 'All External Services',
+    accentColor: '#65c18c',
+    counts: {
+      total: 18,
+      red: 0,
+      blue: 2,
+      green: 16,
+      gray: 0
+    },
+    columns: {
+      name: 'CLOUD SERVICES',
+      now: 'HEALTH NOW',
+      hist: 'LAST 24H'
+    },
+    rows: [
+      { name: 'Microsoft 365 & Entra ID', count: 5, barColor: '#65c18c', sparkPattern: 'green' },
+      { name: 'Teams VoIP Media Relays', count: 4, barColor: '#4f75ff', sparkPattern: 'blue' },
+      { name: 'Google Workspace / Gmail', count: 3, barColor: '#65c18c', sparkPattern: 'green' },
+      { name: 'Salesforce Health Cloud', count: 3, barColor: '#65c18c', sparkPattern: 'green' },
+      { name: 'Slack Realtime API', count: 3, barColor: '#65c18c', sparkPattern: 'green' }
+    ],
+    ongoing: {
+      critCount: 0,
+      warnCount: 2,
+      issues: [
+        { name: 'Teams VoIP MOS score degraded (MOS 3.7)', scope: '1 Sensor  2 Networks', color: 'blue' },
+        { name: 'Microsoft 365 OAuth latency spike', scope: '1 Sensor  1 Network', color: 'blue' }
+      ],
+      moreIssues: null
+    }
+  };
+}
 

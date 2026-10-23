@@ -60,6 +60,8 @@ function initNavigation() {
     if (targetId === 'tab-config') loadTestsConfig();
   }
 
+  window.activateTab = activateTab;
+
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
       const targetId = tab.getAttribute('data-tab');
