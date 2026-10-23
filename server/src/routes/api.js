@@ -331,14 +331,15 @@ router.post('/sensors/:id/terminal/exec', async (req, res) => {
     // Check sensor metadata in DB
     const sensorRes = await query('SELECT * FROM sensors WHERE id = $1', [id]);
     const sensor = sensorRes.rows[0];
-    const sensorIp = sensor?.ip_address || '192.168.64.4';
+    const sensorIp = sensor?.ip_address || (id === 'sensor-kali-arm64' ? '192.168.64.4' : (id === 'sensor-kali-laptop2' ? '192.168.1.125' : '192.168.64.4'));
 
     // Direct SSH execution for sub-second terminal response when reachable
-    if (sensorIp.startsWith('192.168.64.') || id === 'sensor-kali-arm64') {
+    if (sensorIp.startsWith('192.168.') || sensorIp.startsWith('10.') || id === 'sensor-kali-arm64' || id === 'sensor-kali-laptop2') {
       try {
         const timeout = Math.min(timeout_ms || 8000, 20000);
+        const sshUser = (sensorIp === '192.168.64.4' || id === 'sensor-kali-arm64') ? 'mario' : 'kali';
         const escapedCmd = trimmed.replace(/"/g, '\\"');
-        const sshCmd = `ssh -i /Users/marlia/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o ConnectTimeout=3 mario@${sensorIp} "bash -c \\"${escapedCmd}\\""`;
+        const sshCmd = `ssh -i /Users/marlia/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o ConnectTimeout=3 ${sshUser}@${sensorIp} "bash -c \\"${escapedCmd}\\""`;
         const result = await execPromise(sshCmd, { timeout });
         stdout = result.stdout || '';
         stderr = result.stderr || '';
