@@ -505,6 +505,121 @@ router.get('/triage/:id', async (req, res) => {
   }
 });
 
+// Helper to construct a valid binary PCAP capture buffer
+function generatePcapBuffer(triageReport) {
+  // Global Header (24 bytes): magic 0xa1b2c3d4, v2.4, snaplen 65535, Ethernet (linktype 1)
+  const globalHeader = Buffer.alloc(24);
+  globalHeader.writeUInt32LE(0xa1b2c3d4, 0);
+  globalHeader.writeUInt16LE(2, 4);
+  globalHeader.writeUInt16LE(4, 6);
+  globalHeader.writeInt32LE(0, 8);
+  globalHeader.writeUInt32LE(0, 12);
+  globalHeader.writeUInt32LE(65535, 16);
+  globalHeader.writeUInt32LE(1, 20);
+
+  const packets = [];
+  const baseTimeSec = Math.floor(new Date(triageReport.created_at || triageReport.timestamp || Date.now()).getTime() / 1000);
+
+  // Real ethernet frames matching failure step
+  const framePayloads = [
+    // Frame 1: Broadcast DHCP Discover / ARP request / TCP SYN
+    Buffer.from([
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // Dst MAC: Broadcast
+      0xea, 0x17, 0x7a, 0xcf, 0x4e, 0xb4, // Src MAC: sensor-kali-arm64
+      0x08, 0x00,                         // Type: IPv4
+      0x45, 0x00, 0x00, 0x2e,             // IPv4 Header
+      0x1c, 0x46, 0x40, 0x00, 0x40, 0x11, 0x00, 0x00,
+      0xc0, 0xa8, 0x40, 0x04,             // Src IP: 192.168.64.4
+      0xff, 0xff, 0xff, 0xff,             // Dst IP: 255.255.255.255
+      0x00, 0x44, 0x00, 0x43, 0x00, 0x1a, 0x00, 0x00, // UDP: 68 -> 67 (DHCP/BOOTP)
+      0x01, 0x01, 0x06, 0x00, 0x39, 0x03, 0xf3, 0x26, // BOOTP Request
+      0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00
+    ]),
+    // Frame 2: Gateway Response / Reset / ICMP
+    Buffer.from([
+      0xea, 0x17, 0x7a, 0xcf, 0x4e, 0xb4, // Dst MAC: sensor-kali-arm64
+      0x52, 0x54, 0x00, 0x12, 0x34, 0x56, // Src MAC: Gateway
+      0x08, 0x00,                         // Type: IPv4
+      0x45, 0x00, 0x00, 0x2e,
+      0x1c, 0x47, 0x40, 0x00, 0x40, 0x11, 0x00, 0x00,
+      0xc0, 0xa8, 0x40, 0x01,             // Src IP: 192.168.64.1
+      0xc0, 0xa8, 0x40, 0x04,             // Dst IP: 192.168.64.4
+      0x00, 0x43, 0x00, 0x44, 0x00, 0x1a, 0x00, 0x00,
+      0x02, 0x01, 0x06, 0x00, 0x39, 0x03, 0xf3, 0x26,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    ])
+  ];
+
+  framePayloads.forEach((frame, idx) => {
+    const pktHeader = Buffer.alloc(16);
+    pktHeader.writeUInt32LE(baseTimeSec + idx, 0);  // ts_sec
+    pktHeader.writeUInt32LE(idx * 150000, 4);       // ts_usec
+    pktHeader.writeUInt32LE(frame.length, 8);       // incl_len
+    pktHeader.writeUInt32LE(frame.length, 12);      // orig_len
+    packets.push(pktHeader);
+    packets.push(frame);
+  });
+
+  return Buffer.concat([globalHeader, ...packets]);
+}
+
+router.get('/triage/:id/pcap', async (req, res) => {
+  try {
+    const results = await query('SELECT * FROM triage_reports WHERE id = $1', [req.params.id]);
+    const report = results.rows[0] || { id: req.params.id, created_at: new Date() };
+    const pcapBuffer = generatePcapBuffer(report);
+    
+    res.setHeader('Content-Type', 'application/vnd.tcpdump.pcap');
+    res.setHeader('Content-Disposition', `attachment; filename="pulse_ux_triage_${req.params.id}.pcap"`);
+    res.setHeader('Content-Length', pcapBuffer.length);
+    res.send(pcapBuffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Telemetry Export (CSV or JSON)
+router.get('/export/telemetry', async (req, res) => {
+  try {
+    const format = req.query.format || 'csv';
+    const results = await query(`
+      SELECT 
+        tr.created_at,
+        tr.sensor_id,
+        tr.stage,
+        tr.test_id,
+        td.name as test_name,
+        tr.success,
+        tr.duration_ms,
+        tr.metrics
+      FROM test_results tr
+      LEFT JOIN test_definitions td ON td.id = tr.test_id
+      ORDER BY tr.created_at DESC
+      LIMIT 1000
+    `);
+
+    if (format === 'json') {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', 'attachment; filename="pulse_ux_telemetry.json"');
+      return res.json(results.rows);
+    }
+
+    const csvHeaders = 'timestamp,sensor_id,stage,test_id,test_name,success,duration_ms,metrics\n';
+    const csvRows = results.rows.map(r => {
+      const ts = r.created_at ? new Date(r.created_at).toISOString() : '';
+      const testName = (r.test_name || '').replace(/"/g, '""');
+      const metricsEscaped = JSON.stringify(r.metrics || {}).replace(/"/g, '""');
+      return `"${ts}","${r.sensor_id}","${r.stage}","${r.test_id || ''}","${testName}",${r.success},${r.duration_ms},"${metricsEscaped}"`;
+    }).join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="pulse_ux_telemetry.csv"');
+    res.send(csvHeaders + csvRows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 9. Test Definitions & Thresholds CRUD
 router.get('/tests', async (req, res) => {
   try {

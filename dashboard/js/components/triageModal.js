@@ -102,7 +102,7 @@ ${currentTriageData.command_output}
   if (pcapBtn) {
     pcapBtn.addEventListener('click', () => {
       if (!currentTriageData) return alert('No triage report selected');
-      alert(`Inspecting attached capture: ${currentTriageData.pcap_filename || 'capture.pcap'} (${currentTriageData.pcap_size_kb || 128} KB)\nRing buffer frames analyzed with Wireshark/tshark dissector.`);
+      window.location.href = `/api/triage/${encodeURIComponent(currentTriageData.id)}/pcap`;
     });
   }
 }

@@ -604,6 +604,10 @@
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: middle;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
               Refresh
             </button>
+            <a href="/api/export/telemetry?format=csv" download="pulse_ux_telemetry.csv" class="btn btn-secondary btn-sm" id="btn-export-csv" style="display: inline-flex; align-items: center; text-decoration: none;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: middle;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export CSV
+            </a>
           </div>
         </div>
 
@@ -740,7 +744,10 @@
             </div>
             <div class="triage-actions">
               <button class="btn btn-secondary" id="btn-export-triage">Export Plain Text</button>
-              <button class="btn btn-cyan" id="btn-download-pcap">Inspect PCAP</button>
+              <button class="btn btn-cyan" id="btn-download-pcap">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: middle;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download PCAP (.pcap)
+              </button>
             </div>
           </div>
 
