@@ -442,50 +442,138 @@ async function loadArubaPresetItems() {
 // ============================================================================
 
 let hoverTimeout = null;
-let currentHoveredItemId = null;
+let currentHoveredItemEl = null;
 
 function bindSimpleItemHoverEvents(evaluatedItems, currentData) {
-  const itemsMap = {};
-  evaluatedItems.forEach(it => { itemsMap[it.id] = it; });
+  // Store globally so delegated listener can look up items at any time
+  if (!window.__evaluatedItemsMap) window.__evaluatedItemsMap = {};
+  evaluatedItems.forEach(it => {
+    if (it && it.id) window.__evaluatedItemsMap[it.id] = it;
+    if (it && it.name) window.__evaluatedItemsMap[it.name.toLowerCase().trim()] = it;
+  });
+  window.__lastSimpleData = currentData;
+
+  setupGlobalSimpleViewHoverListeners();
+}
+
+function setupGlobalSimpleViewHoverListeners() {
+  if (window.__simpleViewHoverSetup) return;
+  window.__simpleViewHoverSetup = true;
 
   const hovercard = document.getElementById('simple-item-hovercard');
-  if (!hovercard) return;
 
-  // WCAG 1.4.13 Hoverable: user can move pointer over card without dismissal
-  hovercard.onmouseenter = () => {
-    if (hoverTimeout) {
-      clearTimeout(hoverTimeout);
-      hoverTimeout = null;
-    }
-  };
-  hovercard.onmouseleave = () => {
-    hideHoverCard();
-  };
-
-  const itemEls = document.querySelectorAll('.simple-pillar-item');
-  itemEls.forEach(el => {
-    const id = el.getAttribute('data-item-id');
-    const item = itemsMap[id];
-    if (!item) return;
-
-    el.onmouseenter = () => {
+  // Keep hovercard open when pointer moves inside the card
+  if (hovercard) {
+    hovercard.addEventListener('mouseenter', () => {
       if (hoverTimeout) {
         clearTimeout(hoverTimeout);
         hoverTimeout = null;
       }
-      currentHoveredItemId = id;
-      document.querySelectorAll('.simple-pillar-item').forEach(i => i.classList.remove('active-hovered'));
-      el.classList.add('active-hovered');
-
-      showItemHoverCard(el, item, currentData);
-    };
-
-    el.onmouseleave = () => {
+    });
+    hovercard.addEventListener('mouseleave', () => {
+      if (hoverTimeout) clearTimeout(hoverTimeout);
       hoverTimeout = setTimeout(() => {
         hideHoverCard();
       }, 150);
-    };
+    });
+  }
+
+  // 1. Mouseover Event Delegation (captures hover across all current and future pillar items)
+  document.addEventListener('mouseover', (e) => {
+    const itemEl = e.target.closest('.simple-pillar-item');
+    const card = document.getElementById('simple-item-hovercard');
+
+    if (card && (card === e.target || card.contains(e.target))) {
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+        hoverTimeout = null;
+      }
+      return;
+    }
+
+    if (itemEl) {
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+        hoverTimeout = null;
+      }
+      if (currentHoveredItemEl === itemEl && card && card.classList.contains('visible')) {
+        return;
+      }
+      currentHoveredItemEl = itemEl;
+
+      document.querySelectorAll('.simple-pillar-item').forEach(i => i.classList.remove('active-hovered'));
+      itemEl.classList.add('active-hovered');
+
+      const item = resolveHoverItem(itemEl);
+      showItemHoverCard(itemEl, item, window.__lastSimpleData || {});
+    }
   });
+
+  // 2. Mouseout Event Delegation
+  document.addEventListener('mouseout', (e) => {
+    const fromEl = e.target.closest('.simple-pillar-item');
+    const toEl = e.relatedTarget ? e.relatedTarget.closest('.simple-pillar-item') : null;
+    const card = document.getElementById('simple-item-hovercard');
+    const isToCard = card && e.relatedTarget && (card === e.relatedTarget || card.contains(e.relatedTarget));
+
+    if (fromEl && fromEl !== toEl && !isToCard) {
+      if (hoverTimeout) clearTimeout(hoverTimeout);
+      hoverTimeout = setTimeout(() => {
+        hideHoverCard();
+      }, 150);
+    }
+  });
+
+  // 3. Click support: clicking an item toggles or locks the hovercard!
+  document.addEventListener('click', (e) => {
+    const itemEl = e.target.closest('.simple-pillar-item');
+    const card = document.getElementById('simple-item-hovercard');
+
+    if (itemEl) {
+      e.stopPropagation();
+      currentHoveredItemEl = itemEl;
+      document.querySelectorAll('.simple-pillar-item').forEach(i => i.classList.remove('active-hovered'));
+      itemEl.classList.add('active-hovered');
+
+      const item = resolveHoverItem(itemEl);
+      showItemHoverCard(itemEl, item, window.__lastSimpleData || {});
+    } else if (card && !card.contains(e.target)) {
+      hideHoverCard();
+    }
+  });
+
+  // 4. Dismissible via Escape key (WCAG 1.4.13)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') hideHoverCard();
+  });
+}
+
+function resolveHoverItem(itemEl) {
+  const itemId = itemEl.getAttribute('data-item-id');
+  const itemPillar = itemEl.getAttribute('data-pillar');
+  const itemName = itemEl.querySelector('.item-name')?.innerText?.trim() || 'Item';
+
+  // 1. Try lookup by exact ID
+  if (itemId && window.__evaluatedItemsMap?.[itemId]) {
+    return window.__evaluatedItemsMap[itemId];
+  }
+
+  // 2. Try lookup by lower-case Name
+  if (window.__evaluatedItemsMap?.[itemName.toLowerCase()]) {
+    return window.__evaluatedItemsMap[itemName.toLowerCase()];
+  }
+
+  // 3. Resilient fallback: Derive from DOM directly
+  const isRed = itemEl.querySelector('.pill-red') || itemEl.querySelector('[style*="rgb(231, 111, 81)"]') || itemEl.querySelector('[style*="#e76f51"]');
+  const isYellow = itemEl.querySelector('.pill-yellow') || itemEl.querySelector('[style*="#e9c46a"]');
+  return {
+    id: itemId || 'dyn-' + itemName,
+    name: itemName,
+    status: isRed ? 'red' : (isYellow ? 'yellow' : 'green'),
+    pillar: itemPillar || 'experience',
+    target: '',
+    test_type: itemPillar === 'experience' ? 'network' : 'service'
+  };
 }
 
 function hideHoverCard() {
@@ -493,15 +581,11 @@ function hideHoverCard() {
   if (hovercard) {
     hovercard.classList.remove('visible');
     hovercard.style.display = 'none';
+    hovercard.style.visibility = 'hidden';
   }
   document.querySelectorAll('.simple-pillar-item').forEach(i => i.classList.remove('active-hovered'));
-  currentHoveredItemId = null;
+  currentHoveredItemEl = null;
 }
-
-// Dismissible via Escape key (WCAG 1.4.13)
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') hideHoverCard();
-});
 
 function showItemHoverCard(element, item, currentData) {
   const hovercard = document.getElementById('simple-item-hovercard');
@@ -562,8 +646,12 @@ function showItemHoverCard(element, item, currentData) {
     `).join('');
   }
 
-  // 7. Dynamic Positioning with Viewport Boundary Clamping
+  // 7. Make card block and visible immediately
   hovercard.style.display = 'block';
+  hovercard.style.visibility = 'visible';
+  hovercard.style.opacity = '1';
+
+  // 8. Dynamic Positioning with Viewport Boundary Clamping
   const rect = element.getBoundingClientRect();
   const cardWidth = 290;
   const cardHeight = hovercard.offsetHeight || 370;
@@ -581,13 +669,11 @@ function showItemHoverCard(element, item, currentData) {
   if (top + cardHeight > window.innerHeight - 10) {
     top = Math.max(10, window.innerHeight - cardHeight - 10);
   }
+  if (top < 10) top = 10;
 
   hovercard.style.left = `${Math.round(left)}px`;
   hovercard.style.top = `${Math.round(top)}px`;
-
-  requestAnimationFrame(() => {
-    hovercard.classList.add('visible');
-  });
+  hovercard.classList.add('visible');
 }
 
 function generateItemHoverDetails(item, currentData) {

@@ -14,9 +14,17 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Serve Dashboard Frontend
+// Serve Dashboard Frontend (disable caching so edits and JS updates reflect instantly)
 const dashboardPath = path.join(__dirname, '../../dashboard');
-app.use(express.static(dashboardPath));
+app.use(express.static(dashboardPath, {
+  etag: false,
+  maxAge: 0,
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+}));
 
 // API & Realtime SSE
 app.use('/api', apiRoutes);
