@@ -7,9 +7,6 @@
 let simpleViewInitialized = false;
 let currentConfigPillar = 'experience';
 let cachedSimpleItems = [];
-let cachedGroups = [];
-let cachedSensors = [];
-let selectedGroupId = 'all';
 
 function initSimpleView() {
   if (simpleViewInitialized) {
@@ -21,35 +18,21 @@ function initSimpleView() {
   // Initialize modal event listeners
   initSimpleConfigModalEvents();
 
-  // Close dropdown on outside click
-  document.addEventListener('click', (e) => {
-    const wrapper = document.getElementById('groups-filter-wrapper');
-    const menu = document.getElementById('groups-dropdown-menu');
-    if (wrapper && menu && !wrapper.contains(e.target)) {
-      menu.style.display = 'none';
-    }
-  });
-
   refreshSimpleView();
 }
 
 async function refreshSimpleView() {
   try {
-    const [overview, tests, incidents, issues, sensors, itemsData, groupsData] = await Promise.all([
+    const [overview, tests, incidents, issues, sensors, itemsData] = await Promise.all([
       API.getOverview(),
       API.getTests(),
       API.getIncidents(),
       API.getIssues(),
       API.getSensors(),
-      API.getSimpleViewItems().catch(() => ({ items: [], pillars: {} })),
-      API.getGroups().catch(() => ({ groups: [] }))
+      API.getSimpleViewItems().catch(() => ({ items: [], pillars: {} }))
     ]);
 
     cachedSimpleItems = itemsData.items || [];
-    cachedGroups = groupsData.groups || [];
-    cachedSensors = sensors || [];
-
-    renderGroupsDropdown();
 
     renderSimpleViewData({
       overview,
@@ -57,8 +40,7 @@ async function refreshSimpleView() {
       incidents: incidents || [],
       issues: issues || [],
       sensors: sensors || [],
-      pillars: itemsData.pillars || {},
-      groups: cachedGroups
+      pillars: itemsData.pillars || {}
     });
 
     // If config modal is open, refresh its list
@@ -66,86 +48,13 @@ async function refreshSimpleView() {
     if (modal && modal.style.display !== 'none') {
       renderConfigModalList(currentConfigPillar);
     }
-
-    // If groups modal is open, refresh its list
-    const grpModal = document.getElementById('modal-sensor-groups');
-    if (grpModal && grpModal.style.display !== 'none') {
-      renderSensorGroupsList();
-    }
   } catch (err) {
     console.error('Failed to refresh Simple View:', err);
   }
 }
 
-function renderGroupsDropdown() {
-  const menu = document.getElementById('groups-dropdown-menu');
-  const label = document.getElementById('selected-group-label');
-  if (!menu) return;
-
-  const totalSensors = cachedSensors.length || 2;
-  const isAllActive = selectedGroupId === 'all';
-
-  if (label) {
-    if (selectedGroupId === 'all') {
-      label.innerText = 'All Groups';
-    } else {
-      const activeGrp = cachedGroups.find(g => g.id === selectedGroupId);
-      label.innerText = activeGrp ? activeGrp.name : 'All Groups';
-    }
-  }
-
-  let html = `
-    <div class="group-dropdown-item ${isAllActive ? 'active' : ''}" onclick="selectGroupFilter('all')">
-      <div class="group-dropdown-left">
-        <span style="font-weight: 600;">All Groups</span>
-      </div>
-      <span class="group-dropdown-count">${totalSensors}</span>
-    </div>
-    <div class="group-dropdown-divider"></div>
-  `;
-
-  html += cachedGroups.map(grp => {
-    const isActive = selectedGroupId === grp.id;
-    const pillClass = (grp.is_split_status || grp.status === 'split-red-blue') ? 'pill-split-red-blue' : `pill-${grp.color || grp.status || 'blue'}`;
-    const sCount = grp.sensor_count ?? (grp.sensors ? grp.sensors.length : 0);
-    return `
-      <div class="group-dropdown-item ${isActive ? 'active' : ''}" onclick="selectGroupFilter('${grp.id}')">
-        <div class="group-dropdown-left">
-          <div class="item-pill-bar ${pillClass}" style="width: 14px; height: 5px;"></div>
-          <span>${grp.name}</span>
-        </div>
-        <span class="group-dropdown-count">${sCount}</span>
-      </div>
-    `;
-  }).join('');
-
-  html += `
-    <div class="group-dropdown-divider"></div>
-    <div class="group-dropdown-item group-dropdown-action" onclick="toggleGroupsDropdown(); openSensorGroupsModal();">
-      <span>➕ Define Sensor Groups...</span>
-    </div>
-  `;
-
-  menu.innerHTML = html;
-}
-
-function toggleGroupsDropdown() {
-  const menu = document.getElementById('groups-dropdown-menu');
-  if (!menu) return;
-  const isOpen = menu.style.display !== 'none';
-  menu.style.display = isOpen ? 'none' : 'block';
-}
-
-function selectGroupFilter(groupId) {
-  selectedGroupId = groupId;
-  renderGroupsDropdown();
-  const menu = document.getElementById('groups-dropdown-menu');
-  if (menu) menu.style.display = 'none';
-  refreshSimpleView();
-}
-
 function renderSimpleViewData(data) {
-  const { overview, tests, incidents, issues, sensors, pillars, groups } = data;
+  const { overview, tests, incidents, issues, sensors, pillars } = data;
   const activeIncidents = incidents.filter(i => i.status === 'open');
   const activeIssues = issues.filter(i => i.status === 'active');
 
@@ -156,17 +65,8 @@ function renderSimpleViewData(data) {
   const hasGeneralIncident = activeIncidents.length > 0;
   const hasGeneralIssue = activeIssues.length > 0;
 
-  // Sensor Groups drive Experience Pillar
-  const sensorGroups = (groups && groups.length > 0) ? groups : cachedGroups;
-
-  // Populate groups map for hover resolution
-  window.__groupsMap = {};
-  sensorGroups.forEach(g => {
-    window.__groupsMap[g.id] = g;
-    window.__groupsMap[g.name.toLowerCase()] = g;
-  });
-
   // Retrieve configured items per pillar (fallback to defaults if empty)
+  const expItems = pillars.experience || [];
   const srvItems = pillars.services || [];
   const intItems = pillars.internal || [];
   const extItems = pillars.external || [];
@@ -193,19 +93,18 @@ function renderSimpleViewData(data) {
   };
 
   // Evaluate Pillar States
+  const evaluatedExp = expItems.map(it => ({ ...it, ...evalItemStatus(it) }));
   const evaluatedSrv = srvItems.map(it => ({ ...it, ...evalItemStatus(it) }));
   const evaluatedInt = intItems.map(it => ({ ...it, ...evalItemStatus(it) }));
   const evaluatedExt = extItems.map(it => ({ ...it, ...evalItemStatus(it) }));
 
-  // Experience state: any split or red group causes the degraded avatar face
-  const hasDegradedGroup = sensorGroups.some(g => g.is_split_status || g.status === 'split-red-blue' || g.status === 'red');
-  const hasDegradedExp = hasDegradedGroup || hasGeneralIncident || hasGeneralIssue;
+  const hasDegradedExp = evaluatedExp.some(it => it.status === 'red') || hasGeneralIncident || hasGeneralIssue;
   const hasDegradedSrv = evaluatedSrv.some(it => it.status === 'red') || hasDhcpFailure;
   const hasDegradedInt = evaluatedInt.some(it => it.status === 'red');
   const hasDegradedExt = evaluatedExt.some(it => it.status === 'red');
 
-  // 1. Render Experience Pillar based on Groups
-  renderExperiencePillar(hasDegradedExp ? 'bad' : 'good', sensorGroups);
+  // 1. Render Experience Pillar
+  renderExperiencePillar(hasDegradedExp ? 'bad' : 'good', evaluatedExp);
 
   // 2. Render Services Pillar
   renderServicesPillar(hasDegradedSrv ? 'bad' : 'good', evaluatedSrv);
@@ -216,13 +115,8 @@ function renderSimpleViewData(data) {
   // 4. Render External Pillar
   renderExternalPillar(hasDegradedExt ? 'bad' : 'good', evaluatedExt);
 
-  // 5. Bind Interactive Hover Details for All Items Across 4 Pillars (including Sensor Groups)
-  const allEvaluatedItems = [
-    ...sensorGroups.map(g => ({ ...g, pillar: 'experience' })),
-    ...evaluatedSrv,
-    ...evaluatedInt,
-    ...evaluatedExt
-  ];
+  // 5. Bind Interactive Hover Details for All Items Across 4 Pillars
+  const allEvaluatedItems = [...evaluatedExp, ...evaluatedSrv, ...evaluatedInt, ...evaluatedExt];
   bindSimpleItemHoverEvents(allEvaluatedItems, data);
 
   // 6. Update Notification Bell Badge in Header
@@ -242,8 +136,8 @@ function renderSimpleViewData(data) {
   }
 }
 
-// 1. Experience Pillar (The Iconic Pulse UX Smiley / Sad Face - Sensor Groups)
-function renderExperiencePillar(state, groups = []) {
+// 1. Experience Pillar (The Iconic Pulse UX Smiley / Sad Face)
+function renderExperiencePillar(state, items = []) {
   const circle = document.getElementById('simple-circle-experience');
   const svg = document.getElementById('simple-face-svg');
   const list = document.getElementById('simple-list-experience');
@@ -267,22 +161,12 @@ function renderExperiencePillar(state, groups = []) {
     `;
   }
 
-  const displayGroups = (groups && groups.length > 0) ? groups : cachedGroups;
-
-  if (!displayGroups || displayGroups.length === 0) {
-    list.innerHTML = `<div class="empty-pillar-text">No sensor groups defined</div>`;
+  if (items.length === 0) {
+    list.innerHTML = `<div class="empty-pillar-text">No networks configured</div>`;
     return;
   }
 
-  list.innerHTML = displayGroups.map(item => {
-    const isFiltered = selectedGroupId !== 'all' && selectedGroupId !== item.id;
-    const filterStyle = isFiltered ? 'opacity: 0.35;' : '';
-    let rendered = renderPillItem(item, 'experience');
-    if (filterStyle) {
-      rendered = rendered.replace('class="simple-pillar-item"', `class="simple-pillar-item" style="${filterStyle}"`);
-    }
-    return rendered;
-  }).join('');
+  list.innerHTML = items.map(item => renderPillItem(item, 'experience')).join('');
 }
 
 // 2. Services Pillar
@@ -342,10 +226,15 @@ function renderPillItem(item, pillar) {
 
   let indicatorHtml = '';
   if (pillar === 'experience') {
-    // Sensor Groups use pill bars with solid or split styling matching Aruba UXI screenshot
-    const isSplit = item.is_split_status || item.status === 'split-red-blue' || item.color === 'split-red-blue';
-    const pillClass = isSplit ? 'pill-split-red-blue' : `pill-${item.color || item.status || 'blue'}`;
-    indicatorHtml = `<div class="item-pill-bar ${pillClass}"></div>`;
+    // Circular status dot for wireless networks (e.g. Scarif, Yavin, Coruscant)
+    const dotColors = {
+      green: '#65c18c',
+      red: '#e76f51',
+      yellow: '#e9c46a',
+      gray: '#64748b'
+    };
+    const c = dotColors[status] || '#65c18c';
+    indicatorHtml = `<div class="item-dot-indicator" style="width: 8px; height: 8px; border-radius: 50%; background: ${c}; flex-shrink: 0; box-shadow: 0 0 6px ${c}66;"></div>`;
   } else {
     // Pill bar for Services, Internal, and External apps
     indicatorHtml = `<div class="item-pill-bar pill-${status}"></div>`;
@@ -356,13 +245,6 @@ function renderPillItem(item, pillar) {
     iconHtml = `
       <svg class="item-micro-icon text-red" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/>
-      </svg>
-    `;
-  } else if (iconType === 'laptop') {
-    iconHtml = `
-      <svg class="item-micro-icon text-muted" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
-        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-        <line x1="2" y1="20" x2="22" y2="20"/>
       </svg>
     `;
   } else if (iconType === 'bolt') {
@@ -387,7 +269,6 @@ function renderPillItem(item, pillar) {
     </div>
   `;
 }
-
 
 // ============================================================================
 // Interactive Simple View Configuration Modal Logic
@@ -758,16 +639,6 @@ function resolveHoverItem(itemEl) {
   const itemPillar = itemEl.getAttribute('data-pillar');
   const itemName = itemEl.querySelector('.item-name')?.innerText?.trim() || 'Item';
 
-  // Sensor Group resolution
-  if (itemPillar === 'experience') {
-    if (itemId && window.__groupsMap?.[itemId]) {
-      return { ...window.__groupsMap[itemId], pillar: 'experience' };
-    }
-    if (window.__groupsMap?.[itemName.toLowerCase()]) {
-      return { ...window.__groupsMap[itemName.toLowerCase()], pillar: 'experience' };
-    }
-  }
-
   // 1. Try lookup by exact ID
   if (itemId && window.__evaluatedItemsMap?.[itemId]) {
     return window.__evaluatedItemsMap[itemId];
@@ -779,16 +650,15 @@ function resolveHoverItem(itemEl) {
   }
 
   // 3. Resilient fallback: Derive from DOM directly
-  const isRed = itemEl.querySelector('.pill-red') || itemEl.querySelector('.pill-split-red-blue') || itemEl.querySelector('[style*="rgb(231, 111, 81)"]') || itemEl.querySelector('[style*="#e76f51"]');
+  const isRed = itemEl.querySelector('.pill-red') || itemEl.querySelector('[style*="rgb(231, 111, 81)"]') || itemEl.querySelector('[style*="#e76f51"]');
   const isYellow = itemEl.querySelector('.pill-yellow') || itemEl.querySelector('[style*="#e9c46a"]');
-  const isBlue = itemEl.querySelector('.pill-blue') || itemEl.querySelector('[style*="#4f75ff"]');
   return {
     id: itemId || 'dyn-' + itemName,
     name: itemName,
-    status: isRed ? 'red' : (isYellow ? 'yellow' : (isBlue ? 'blue' : 'green')),
+    status: isRed ? 'red' : (isYellow ? 'yellow' : 'green'),
     pillar: itemPillar || 'experience',
     target: '',
-    test_type: itemPillar === 'experience' ? 'group' : 'service'
+    test_type: itemPillar === 'experience' ? 'network' : 'service'
   };
 }
 
@@ -899,56 +769,6 @@ function generateItemHoverDetails(item, currentData) {
   const target = item.target || '';
   const testType = item.test_type || 'service';
 
-  // Sensor Group Detail Card for Experience pillar
-  if (pillar === 'experience') {
-    const isSplit = item.is_split_status || item.status === 'split-red-blue' || item.color === 'split-red-blue';
-    const isDegraded = isSplit || item.status === 'red' || item.color === 'red';
-    const sCount = item.sensor_count ?? (item.sensors ? item.sensors.length : 1);
-    const sensorList = (item.sensors && item.sensors.length) 
-      ? item.sensors.map(s => s.name || s.id).join(', ')
-      : 'sensor-kali-laptop2 (wlan0)';
-
-    const groupAccent = isDegraded ? '#e76f51' : (item.color === 'green' ? '#65c18c' : (item.color === 'gray' ? '#64748b' : '#4f75ff'));
-    const groupBadgeClass = isDegraded ? 'badge-red' : (item.color === 'green' ? 'badge-green' : (item.color === 'gray' ? 'badge-gray' : 'badge-blue'));
-
-    const histBars = [];
-    for (let h = 0; h < 24; h++) {
-      let bHeight = (h % 3 === 0) ? 6 : 4;
-      let bColor = 'bar-blue';
-      if (isDegraded && (h >= 14 || h % 4 === 0)) {
-        bHeight = 12 + (h % 5) * 2;
-        bColor = 'bar-red';
-      }
-      histBars.push({ height: bHeight, colorClass: bColor });
-    }
-
-    return {
-      name,
-      status: item.status,
-      pillar: 'experience',
-      accentColor: groupAccent,
-      badgeClass: groupBadgeClass,
-      badgeText: `${sCount} SENSOR${sCount === 1 ? '' : 'S'}`,
-      eventsTotal: isDegraded ? 188 : 42,
-      histogramBars: histBars,
-      ongoingCount: isDegraded ? 4 : 0,
-      ongoingBulletColor: groupAccent,
-      ongoingDesc: isDegraded
-        ? '• Unexpected HTTPS status code & SSL error detected'
-        : '• All assigned sensors operating within SLA',
-      ongoingTags: isDegraded ? ['2 Sensors Affected', 'Wi-Fi 6 / 802.11ax', 'DHCP OK'] : ['Optimal SLA', 'Low Roaming Latency'],
-      latestValues: [
-        { label: 'Assigned Sensors', value: `${sCount} active` },
-        { label: 'Member Fleet', value: sensorList },
-        { label: 'Primary SSID', value: 'MariosWorld1UP (Ch 36)' },
-        { label: 'Default Gateway', value: '192.168.1.1 (0.8ms)' },
-        { label: 'DHCP Lease Time', value: '38 ms' },
-        { label: 'DNS Resolution', value: '14 ms (AD-DNS)' },
-        { label: 'Group SLA Uptime', value: isDegraded ? '91.4%' : '99.9%' }
-      ]
-    };
-  }
-
   const isRed = status === 'red';
   const isYellow = status === 'yellow';
   const accentColor = isRed ? '#e76f51' : (isYellow ? '#e9c46a' : '#65c18c');
@@ -959,7 +779,6 @@ function generateItemHoverDetails(item, currentData) {
   let eventsTotal = 0;
   if (name.toLowerCase().includes('scarif') || (isRed && pillar === 'experience')) {
     eventsTotal = 123;
-
   } else if (isRed) {
     eventsTotal = Math.floor(40 + (name.length * 7) % 85);
   } else if (isYellow) {
@@ -1354,85 +1173,38 @@ function renderPscSparkline(pattern) {
 
 function generatePillarSummaryData(pillar, currentData) {
   if (pillar === 'experience') {
-    const groups = (cachedGroups && cachedGroups.length) ? cachedGroups : [
-      { name: 'EMEA', sensor_count: 7, color: 'blue', status: 'blue' },
-      { name: 'North America', sensor_count: 7, color: 'blue', status: 'blue' },
-      { name: 'APJ', sensor_count: 3, color: 'blue', status: 'blue' },
-      { name: '6E sensor', sensor_count: 1, color: 'blue', status: 'blue' },
-      { name: 'Laptop Agents', sensor_count: 10, is_split_status: true, color: 'split-red-blue', status: 'split-red-blue' },
-      { name: 'Android Agents', sensor_count: 6, color: 'green', status: 'green' },
-      { name: 'staging', sensor_count: 3, color: 'gray', status: 'gray' }
-    ];
-
-    let totalSensors = 0;
-    let redCount = 0;
-    let blueCount = 0;
-    let greenCount = 0;
-    let grayCount = 0;
-
-    const rows = groups.map(grp => {
-      const isSplit = grp.is_split_status || grp.status === 'split-red-blue' || grp.color === 'split-red-blue';
-      const count = grp.sensor_count ?? (grp.sensors ? grp.sensors.length : 1);
-      totalSensors += count;
-
-      let barSegments = null;
-      let barColor = '#4f75ff';
-
-      if (isSplit) {
-        redCount += 1;
-        blueCount += Math.max(1, count - 1);
-        barSegments = [
-          { width: 18, color: '#e76f51' },
-          { width: 82, color: '#4f75ff' }
-        ];
-      } else if (grp.color === 'red' || grp.status === 'red') {
-        redCount += count;
-        barColor = '#e76f51';
-      } else if (grp.color === 'green' || grp.status === 'green') {
-        greenCount += count;
-        barColor = '#65c18c';
-      } else if (grp.color === 'gray' || grp.status === 'gray') {
-        grayCount += count;
-        barColor = '#64748b';
-      } else {
-        blueCount += count;
-        barColor = '#4f75ff';
-      }
-
-      const nameLower = (grp.name || '').toLowerCase();
-      const sparkPattern = nameLower.includes('laptop') ? 'laptops' :
-                           nameLower.includes('emea') ? 'emea' :
-                           nameLower.includes('north') ? 'na' :
-                           nameLower.includes('6e') ? '6e' :
-                           nameLower.includes('android') ? 'android' :
-                           nameLower.includes('staging') ? 'staging' :
-                           (isSplit ? 'laptops' : 'apj');
-
-      return {
-        name: grp.name,
-        count,
-        barSegments,
-        barColor,
-        sparkPattern
-      };
-    });
-
     return {
       title: 'All Sensors',
       accentColor: '#e76f51',
       counts: {
-        total: totalSensors || 37,
-        red: redCount || 1,
-        blue: blueCount || 14,
-        green: greenCount || 2,
-        gray: grayCount || 20
+        total: 37,
+        red: 1,
+        blue: 14,
+        green: 2,
+        gray: 20
       },
       columns: {
         name: 'GROUPS',
         now: 'SENSORS NOW',
         hist: 'LAST 24H'
       },
-      rows,
+      rows: [
+        { name: 'EMEA', count: 7, barColor: '#4f75ff', sparkPattern: 'emea' },
+        { name: 'North America', count: 7, barColor: '#4f75ff', sparkPattern: 'na' },
+        { name: 'APJ', count: 3, barColor: '#4f75ff', sparkPattern: 'apj' },
+        { name: '6E sensor', count: 1, barColor: '#4f75ff', sparkPattern: '6e' },
+        {
+          name: 'Laptop Agents',
+          count: 10,
+          barSegments: [
+            { width: 18, color: '#e76f51' },
+            { width: 82, color: '#4f75ff' }
+          ],
+          sparkPattern: 'laptops'
+        },
+        { name: 'Android Agents', count: 6, barColor: '#65c18c', sparkPattern: 'android' },
+        { name: 'staging', count: 3, barColor: '#64748b', sparkPattern: 'staging' }
+      ],
       ongoing: {
         critCount: 4,
         warnCount: 188,
@@ -1554,247 +1326,4 @@ function generatePillarSummaryData(pillar, currentData) {
     }
   };
 }
-
-// ============================================================================
-// Sensor Groups Management Modal Logic (Defining Groups of Sensors)
-// ============================================================================
-
-let currentEditingGroupId = null;
-
-function openSensorGroupsModal() {
-  const modal = document.getElementById('modal-sensor-groups');
-  if (!modal) return;
-  modal.style.display = 'flex';
-  renderSensorGroupsList();
-  renderSensorChecklist();
-  startNewSensorGroup();
-}
-
-function closeSensorGroupsModal() {
-  const modal = document.getElementById('modal-sensor-groups');
-  if (modal) modal.style.display = 'none';
-  refreshSimpleView();
-}
-
-function renderSensorGroupsList() {
-  const container = document.getElementById('sensor-groups-list');
-  if (!container) return;
-
-  if (cachedGroups.length === 0) {
-    container.innerHTML = `<div style="font-size: 0.8rem; color: #94a3b8; padding: 1rem 0;">No groups defined. Click "+ New Group" to create one.</div>`;
-    return;
-  }
-
-  container.innerHTML = cachedGroups.map(grp => {
-    const isSelected = currentEditingGroupId === grp.id;
-    const isSplit = grp.is_split_status || grp.status === 'split-red-blue' || grp.color === 'split-red-blue';
-    const pillClass = isSplit ? 'pill-split-red-blue' : `pill-${grp.color || grp.status || 'blue'}`;
-    const sCount = grp.sensor_count ?? (grp.sensors ? grp.sensors.length : 0);
-    const memberSensorsStr = (grp.sensors && grp.sensors.length) 
-      ? grp.sensors.map(s => s.name || s.id).join(', ') 
-      : 'No sensors assigned';
-
-    return `
-      <div class="group-card-item ${isSelected ? 'selected' : ''}" onclick="editSensorGroup('${grp.id}')">
-        <div class="group-card-left">
-          <div class="item-pill-bar ${pillClass}" style="width: 18px; height: 6px;"></div>
-          <div class="group-card-info">
-            <span class="group-card-name">${grp.name}</span>
-            <span class="group-card-meta">${sCount} sensor${sCount === 1 ? '' : 's'} • ${memberSensorsStr}</span>
-          </div>
-        </div>
-        <div class="group-card-actions">
-          <button type="button" class="btn-card-action" onclick="event.stopPropagation(); deleteSensorGroup('${grp.id}')" title="Delete Group">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-          </button>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-function renderSensorChecklist(selectedSensorIds = []) {
-  const container = document.getElementById('group-sensors-checklist');
-  if (!container) return;
-
-  if (cachedSensors.length === 0) {
-    container.innerHTML = `<div style="font-size: 0.78rem; color: #94a3b8; padding: 0.5rem;">No sensors found in fleet database.</div>`;
-    return;
-  }
-
-  container.innerHTML = cachedSensors.map(sensor => {
-    const isChecked = selectedSensorIds.includes(sensor.id);
-    const ip = sensor.ip_address || sensor.ip || '192.168.1.x';
-    const iface = sensor.interface || (sensor.wifi_card_detected ? 'wlan0' : 'eth0');
-    const platform = sensor.platform || 'Linux';
-    return `
-      <label class="sensor-check-row">
-        <input type="checkbox" name="sensor_member" value="${sensor.id}" ${isChecked ? 'checked' : ''}>
-        <span class="sensor-check-name">${sensor.name || sensor.id}</span>
-        <span class="sensor-check-meta">${ip} • ${iface} (${platform})</span>
-      </label>
-    `;
-  }).join('');
-}
-
-function startNewSensorGroup() {
-  currentEditingGroupId = null;
-  const idEl = document.getElementById('group-edit-id');
-  const nameEl = document.getElementById('group-input-name');
-  const descEl = document.getElementById('group-input-desc');
-  const statusEl = document.getElementById('group-input-status');
-  const iconEl = document.getElementById('group-input-icon');
-  const badgeEl = document.getElementById('editor-mode-badge');
-  const titleEl = document.getElementById('editor-form-title');
-  const btnEl = document.getElementById('btn-save-group');
-
-  if (idEl) idEl.value = '';
-  if (nameEl) nameEl.value = '';
-  if (descEl) descEl.value = '';
-  if (statusEl) statusEl.value = 'blue';
-  if (iconEl) iconEl.value = 'none';
-  if (badgeEl) {
-    badgeEl.innerText = 'Creating New';
-    badgeEl.style.background = 'rgba(56, 189, 248, 0.15)';
-    badgeEl.style.color = '#38bdf8';
-  }
-  if (titleEl) titleEl.innerText = 'Create Sensor Group';
-  if (btnEl) btnEl.innerText = 'Create Sensor Group';
-
-  renderSensorChecklist([]);
-  renderSensorGroupsList();
-}
-
-function editSensorGroup(groupId) {
-  const grp = cachedGroups.find(g => g.id === groupId);
-  if (!grp) return;
-
-  currentEditingGroupId = groupId;
-  const idEl = document.getElementById('group-edit-id');
-  const nameEl = document.getElementById('group-input-name');
-  const descEl = document.getElementById('group-input-desc');
-  const statusEl = document.getElementById('group-input-status');
-  const iconEl = document.getElementById('group-input-icon');
-  const badgeEl = document.getElementById('editor-mode-badge');
-  const titleEl = document.getElementById('editor-form-title');
-  const btnEl = document.getElementById('btn-save-group');
-
-  if (idEl) idEl.value = grp.id;
-  if (nameEl) nameEl.value = grp.name || '';
-  if (descEl) descEl.value = grp.description || '';
-  if (statusEl) statusEl.value = grp.is_split_status ? 'split-red-blue' : (grp.color || grp.status || 'blue');
-  if (iconEl) iconEl.value = grp.icon_type || 'none';
-  if (badgeEl) {
-    badgeEl.innerText = `Editing: ${grp.name}`;
-    badgeEl.style.background = 'rgba(234, 179, 8, 0.15)';
-    badgeEl.style.color = '#eab308';
-  }
-  if (titleEl) titleEl.innerText = 'Edit Sensor Group';
-  if (btnEl) btnEl.innerText = 'Save Changes';
-
-  const memberIds = (grp.sensors || []).map(s => s.id || s);
-  renderSensorChecklist(memberIds);
-  renderSensorGroupsList();
-}
-
-async function handleSaveSensorGroup(event) {
-  if (event) event.preventDefault();
-
-  const id = document.getElementById('group-edit-id')?.value;
-  const name = document.getElementById('group-input-name')?.value?.trim();
-  const description = document.getElementById('group-input-desc')?.value?.trim();
-  const statusVal = document.getElementById('group-input-status')?.value || 'blue';
-  const icon_type = document.getElementById('group-input-icon')?.value || 'none';
-
-  if (!name) return;
-
-  const is_split_status = statusVal === 'split-red-blue';
-  const color = is_split_status ? 'split-red-blue' : statusVal;
-  const status = is_split_status ? 'split-red-blue' : statusVal;
-
-  const checkedSensors = Array.from(document.querySelectorAll('#group-sensors-checklist input[name="sensor_member"]:checked'))
-    .map(cb => cb.value);
-
-  const payload = {
-    name,
-    description,
-    color,
-    status,
-    icon_type,
-    is_split_status,
-    sensor_ids: checkedSensors
-  };
-
-  try {
-    if (id) {
-      await API.updateGroup(id, payload);
-    } else {
-      await API.createGroup(payload);
-    }
-
-    const groupsRes = await API.getGroups();
-    cachedGroups = groupsRes.groups || [];
-    renderSensorGroupsList();
-    startNewSensorGroup();
-    refreshSimpleView();
-  } catch (err) {
-    console.error('Failed to save group:', err);
-    alert('Failed to save sensor group: ' + err.message);
-  }
-}
-
-async function deleteSensorGroup(groupId) {
-  const grp = cachedGroups.find(g => g.id === groupId);
-  const name = grp ? grp.name : 'this group';
-  if (!confirm(`Are you sure you want to delete the sensor group "${name}"?`)) return;
-
-  try {
-    await API.deleteGroup(groupId);
-    const groupsRes = await API.getGroups();
-    cachedGroups = groupsRes.groups || [];
-    if (currentEditingGroupId === groupId) {
-      startNewSensorGroup();
-    } else {
-      renderSensorGroupsList();
-    }
-    refreshSimpleView();
-  } catch (err) {
-    console.error('Failed to delete group:', err);
-    alert('Failed to delete sensor group: ' + err.message);
-  }
-}
-
-async function resetSensorGroupsDefaults() {
-  if (!confirm('Reset sensor groups to authentic Aruba UXI baseline (Laptop Agents, EMEA, APJ, North America, 6E sensor, etc.)?')) return;
-
-  try {
-    await API.resetGroups();
-    const groupsRes = await API.getGroups();
-    cachedGroups = groupsRes.groups || [];
-    renderSensorGroupsList();
-    startNewSensorGroup();
-    refreshSimpleView();
-  } catch (err) {
-    console.error('Failed to reset groups:', err);
-    alert('Failed to reset sensor groups: ' + err.message);
-  }
-}
-
-function selectAllGroupSensors(checkAll) {
-  const checkboxes = document.querySelectorAll('#group-sensors-checklist input[name="sensor_member"]');
-  checkboxes.forEach(cb => cb.checked = checkAll);
-}
-
-// Expose globals for onclick handlers
-window.openSensorGroupsModal = openSensorGroupsModal;
-window.closeSensorGroupsModal = closeSensorGroupsModal;
-window.startNewSensorGroup = startNewSensorGroup;
-window.editSensorGroup = editSensorGroup;
-window.deleteSensorGroup = deleteSensorGroup;
-window.handleSaveSensorGroup = handleSaveSensorGroup;
-window.resetSensorGroupsDefaults = resetSensorGroupsDefaults;
-window.selectAllGroupSensors = selectAllGroupSensors;
-window.toggleGroupsDropdown = toggleGroupsDropdown;
-window.selectGroupFilter = selectGroupFilter;
-
 

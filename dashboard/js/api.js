@@ -176,43 +176,5 @@ const API = {
   async getTerminalHistory(sensorId) {
     const res = await fetch(`${this.baseUrl}/sensors/${encodeURIComponent(sensorId)}/terminal/history`);
     return await res.json();
-  },
-
-  async getGroups() {
-    const res = await fetch(`${this.baseUrl}/groups`);
-    return await res.json();
-  },
-
-  async createGroup(data) {
-    const res = await fetch(`${this.baseUrl}/groups`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return await res.json();
-  },
-
-  async updateGroup(id, data) {
-    const res = await fetch(`${this.baseUrl}/groups/${encodeURIComponent(id)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return await res.json();
-  },
-
-  async deleteGroup(id) {
-    const res = await fetch(`${this.baseUrl}/groups/${encodeURIComponent(id)}`, {
-      method: 'DELETE'
-    });
-    return await res.json();
-  },
-
-  async resetGroups() {
-    const res = await fetch(`${this.baseUrl}/groups/reset`, {
-      method: 'POST'
-    });
-    return await res.json();
   }
 };
-
