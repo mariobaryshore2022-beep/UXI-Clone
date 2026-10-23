@@ -155,6 +155,14 @@ function initEventSource() {
       loadSensors();
     } catch {}
   });
+
+  evtSource.addEventListener('tests_updated', () => {
+    loadTestsConfig();
+  });
+
+  evtSource.addEventListener('thresholds_updated', () => {
+    loadGlobalThresholds();
+  });
 }
 
 // 3. Data Loaders
@@ -165,7 +173,8 @@ async function refreshAllData() {
     loadSensors(),
     loadWifiEnvironment(),
     loadTriageReports(),
-    loadTestsConfig()
+    loadTestsConfig(),
+    loadGlobalThresholds()
   ]);
   if (typeof initSensorHistoryView === 'function') {
     initSensorHistoryView();
@@ -411,19 +420,32 @@ async function loadTriageReports() {
   }
 }
 
+let allTestsConfig = [];
+
 async function loadTestsConfig() {
   try {
     const tests = await API.getTests();
+    allTestsConfig = tests || [];
     const tbody = document.getElementById('tbody-tests-config');
     if (tbody) {
-      tbody.innerHTML = tests.map(t => `
-        <tr>
+      if (allTestsConfig.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">No synthetic tests configured. Click "+ Add Synthetic Test" above.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = allTestsConfig.map(t => `
+        <tr id="row-test-${t.id}">
           <td><strong>${t.name}</strong></td>
           <td><span class="badge badge-cyan-outline">${t.template.toUpperCase()}</span></td>
           <td style="font-family: var(--font-mono); font-size: 0.78rem;">${t.target}${t.port ? ':' + t.port : ''}</td>
           <td>${t.interval_seconds}s</td>
           <td style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-secondary);">
-            ${JSON.stringify(t.thresholds)}
+            ${JSON.stringify(t.thresholds || {})}
+          </td>
+          <td style="text-align: right;">
+            <div style="display: flex; gap: 6px; justify-content: flex-end;">
+              <button class="btn btn-secondary btn-sm" onclick="openTestEditorModal('${t.id}')" title="Edit Test">Edit</button>
+              <button class="btn btn-outline-danger btn-sm" onclick="deleteTestConfig('${t.id}')" title="Delete Test">&times;</button>
+            </div>
           </td>
         </tr>
       `).join('');
@@ -432,6 +454,188 @@ async function loadTestsConfig() {
     console.error('Failed to load tests config:', err);
   }
 }
+
+async function loadGlobalThresholds() {
+  try {
+    const data = await API.getGlobalThresholds();
+    if (!data) return;
+    const d = document.getElementById('thresh-dhcp');
+    const n = document.getElementById('thresh-dns');
+    const m = document.getElementById('thresh-mos');
+    const t = document.getElementById('thresh-throughput');
+    const w = document.getElementById('webhook-url');
+
+    if (d && data.max_dhcp_ms) d.value = data.max_dhcp_ms;
+    if (n && data.max_dns_ms) n.value = data.max_dns_ms;
+    if (m && data.min_mos) m.value = data.min_mos;
+    if (t && data.min_throughput_mbps) t.value = data.min_throughput_mbps;
+    if (w && data.webhook_url !== undefined) w.value = data.webhook_url;
+  } catch (err) {
+    console.error('Failed to load thresholds:', err);
+  }
+}
+
+async function saveGlobalThresholds(e) {
+  if (e) e.preventDefault();
+  const btn = document.getElementById('btn-save-thresholds');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = 'Saving...';
+  }
+
+  const payload = {
+    max_dhcp_ms: parseInt(document.getElementById('thresh-dhcp').value, 10),
+    max_dns_ms: parseInt(document.getElementById('thresh-dns').value, 10),
+    min_mos: parseFloat(document.getElementById('thresh-mos').value),
+    min_throughput_mbps: parseFloat(document.getElementById('thresh-throughput').value),
+    webhook_url: document.getElementById('webhook-url').value.trim()
+  };
+
+  try {
+    await API.updateGlobalThresholds(payload);
+    showCommandToast('Global SLA Thresholds saved to database!');
+    if (btn) {
+      btn.innerText = 'Saved!';
+      btn.style.borderColor = '#10b981';
+      btn.style.color = '#10b981';
+    }
+    setTimeout(() => {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerText = 'Save Configuration';
+        btn.style.borderColor = '';
+        btn.style.color = '';
+      }
+    }, 2500);
+  } catch (err) {
+    alert('Failed to save thresholds: ' + err.message);
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = 'Save Configuration';
+    }
+  }
+}
+
+function openTestEditorModal(testId = null) {
+  const modal = document.getElementById('modal-test-editor');
+  const heading = document.getElementById('test-modal-heading');
+  const inputId = document.getElementById('input-test-id');
+  const inputName = document.getElementById('input-test-name');
+  const inputTemplate = document.getElementById('input-test-template');
+  const inputTarget = document.getElementById('input-test-target');
+  const inputPort = document.getElementById('input-test-port');
+  const inputInterval = document.getElementById('input-test-interval');
+  const inputLatency = document.getElementById('input-test-threshold-latency');
+  const inputEnabled = document.getElementById('input-test-enabled');
+
+  if (!modal) return;
+
+  if (testId) {
+    const test = allTestsConfig.find(t => t.id === testId);
+    if (test) {
+      if (heading) heading.innerText = 'Edit Synthetic Test';
+      if (inputId) inputId.value = test.id;
+      if (inputName) inputName.value = test.name;
+      if (inputTemplate) inputTemplate.value = test.template;
+      if (inputTarget) inputTarget.value = test.target;
+      if (inputPort) inputPort.value = test.port || 443;
+      if (inputInterval) inputInterval.value = test.interval_seconds || 180;
+      if (inputLatency) inputLatency.value = test.thresholds?.max_latency_ms || 150;
+      if (inputEnabled) inputEnabled.checked = test.is_enabled !== false;
+    }
+  } else {
+    if (heading) heading.innerText = 'Add Synthetic Test';
+    if (inputId) inputId.value = '';
+    if (inputName) inputName.value = '';
+    if (inputTemplate) inputTemplate.value = 'webserver';
+    if (inputTarget) inputTarget.value = '';
+    if (inputPort) inputPort.value = '443';
+    if (inputInterval) inputInterval.value = '180';
+    if (inputLatency) inputLatency.value = '150';
+    if (inputEnabled) inputEnabled.checked = true;
+  }
+
+  modal.style.display = 'flex';
+}
+
+function closeTestEditorModal() {
+  const modal = document.getElementById('modal-test-editor');
+  if (modal) modal.style.display = 'none';
+}
+
+async function handleTestEditorSubmit(e) {
+  e.preventDefault();
+  const id = document.getElementById('input-test-id').value;
+  const name = document.getElementById('input-test-name').value.trim();
+  const template = document.getElementById('input-test-template').value;
+  const target = document.getElementById('input-test-target').value.trim();
+  const port = parseInt(document.getElementById('input-test-port').value, 10) || 443;
+  const interval_seconds = parseInt(document.getElementById('input-test-interval').value, 10) || 180;
+  const max_latency_ms = parseInt(document.getElementById('input-test-threshold-latency').value, 10) || 150;
+  const is_enabled = document.getElementById('input-test-enabled').checked;
+
+  const payload = {
+    name,
+    template,
+    target,
+    port,
+    interval_seconds,
+    thresholds: { max_latency_ms },
+    is_enabled
+  };
+
+  const saveBtn = document.getElementById('btn-save-test-editor');
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerText = 'Saving...';
+  }
+
+  try {
+    if (id) {
+      await API.updateTest(id, payload);
+      showCommandToast(`Synthetic test "${name}" updated!`);
+    } else {
+      await API.createTest(payload);
+      showCommandToast(`New synthetic test "${name}" created!`);
+    }
+    closeTestEditorModal();
+    await loadTestsConfig();
+  } catch (err) {
+    alert('Failed to save test: ' + err.message);
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        Save Test
+      `;
+    }
+  }
+}
+
+async function deleteTestConfig(testId) {
+  const test = allTestsConfig.find(t => t.id === testId);
+  const testName = test ? test.name : testId;
+  if (!confirm(`Are you sure you want to delete synthetic test "${testName}"?`)) {
+    return;
+  }
+
+  try {
+    await API.deleteTest(testId);
+    showCommandToast(`Test "${testName}" deleted.`);
+    await loadTestsConfig();
+  } catch (err) {
+    alert('Failed to delete test: ' + err.message);
+  }
+}
+
+window.loadGlobalThresholds = loadGlobalThresholds;
+window.saveGlobalThresholds = saveGlobalThresholds;
+window.openTestEditorModal = openTestEditorModal;
+window.closeTestEditorModal = closeTestEditorModal;
+window.handleTestEditorSubmit = handleTestEditorSubmit;
+window.deleteTestConfig = deleteTestConfig;
+
 
 // 4. Live Cycle Stepper Animations
 function updateCycleStepper(stage) {

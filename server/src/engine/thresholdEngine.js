@@ -143,6 +143,36 @@ async function evaluateResult(sensorId, networkId, testId, stage, success, durat
       ]);
     }
 
+    // Auto-resolve active issues when test metrics recover and operate within SLA
+    if (issuesToCreate.length === 0 && success) {
+      const resolvedRes = await query(`
+        UPDATE issues 
+        SET status = 'resolved', resolved_at = NOW() 
+        WHERE sensor_id = $1 
+          AND status = 'active' 
+          AND (
+            ($2::varchar IS NOT NULL AND test_id = $2)
+            OR (metric_name ILIKE '%' || $3 || '%' OR title ILIKE '%' || $3 || '%')
+          )
+        RETURNING id, incident_id
+      `, [sensorId, testId || null, stage]);
+
+      // Auto-resolve any correlated parent incidents whose child issues are all resolved
+      if (resolvedRes.rows.length > 0) {
+        await query(`
+          UPDATE incidents 
+          SET status = 'resolved', resolved_at = NOW()
+          WHERE id IN (
+            SELECT inc.id FROM incidents inc
+            LEFT JOIN issues iss ON iss.incident_id = inc.id AND iss.status = 'active'
+            WHERE (inc.status = 'open' OR inc.status = 'investigating')
+            GROUP BY inc.id
+            HAVING count(iss.id) = 0
+          )
+        `);
+      }
+    }
+
     return issuesToCreate;
   } catch (err) {
     console.error('Error evaluating threshold:', err);

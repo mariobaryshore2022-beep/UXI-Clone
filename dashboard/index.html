@@ -789,9 +789,15 @@
       <div class="two-col-grid">
         <!-- Test Definitions List -->
         <div class="card glass-card">
-          <div class="card-header">
-            <span class="card-title">CONFIGURED TEST TEMPLATES</span>
-            <span class="badge badge-cyan-outline">ACTIVE TESTS</span>
+          <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <span class="card-title">CONFIGURED TEST TEMPLATES</span>
+              <span class="card-subtitle">Active synthetic tests dynamically executed by sensor fleet</span>
+            </div>
+            <button class="btn btn-primary" onclick="openTestEditorModal()" style="font-size: 0.75rem; padding: 0.35rem 0.85rem; display: flex; align-items: center; gap: 6px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              + Add Synthetic Test
+            </button>
           </div>
           <div class="table-container">
             <table class="data-table" id="table-tests-config">
@@ -802,6 +808,7 @@
                   <th>TARGET</th>
                   <th>INTERVAL</th>
                   <th>THRESHOLDS</th>
+                  <th style="text-align: right; width: 110px;">ACTIONS</th>
                 </tr>
               </thead>
               <tbody id="tbody-tests-config">
@@ -817,28 +824,28 @@
             <span class="card-title">GLOBAL SLA THRESHOLDS</span>
             <span class="card-subtitle">Breaches generate blue Issues and trigger AIOps grouping</span>
           </div>
-          <form class="threshold-form" id="form-thresholds" onsubmit="event.preventDefault()">
+          <form class="threshold-form" id="form-thresholds" onsubmit="saveGlobalThresholds(event)">
             <div class="form-group">
               <label for="thresh-dhcp">Max DHCP Lease Duration (ms)</label>
-              <input type="number" id="thresh-dhcp" class="form-control" value="2000">
+              <input type="number" id="thresh-dhcp" class="form-control" value="2000" required>
               <span class="form-hint">Standard enterprise limit: 2,000 ms</span>
             </div>
 
             <div class="form-group">
               <label for="thresh-dns">Max DNS Lookup Latency (ms)</label>
-              <input type="number" id="thresh-dns" class="form-control" value="100">
+              <input type="number" id="thresh-dns" class="form-control" value="100" required>
               <span class="form-hint">Alert if primary/secondary resolver exceeds 100 ms</span>
             </div>
 
             <div class="form-group">
               <label for="thresh-mos">Minimum VoIP MOS (1.0 - 5.0)</label>
-              <input type="number" step="0.1" id="thresh-mos" class="form-control" value="3.8">
+              <input type="number" step="0.1" id="thresh-mos" class="form-control" value="3.8" required>
               <span class="form-hint">ITU-T G.107 standard good call floor: 3.8</span>
             </div>
 
             <div class="form-group">
               <label for="thresh-throughput">Minimum Throughput (Mbps)</label>
-              <input type="number" id="thresh-throughput" class="form-control" value="40">
+              <input type="number" id="thresh-throughput" class="form-control" value="40" required>
               <span class="form-hint">Alert if branch iPerf throughput drops below 40 Mbps</span>
             </div>
 
@@ -848,11 +855,86 @@
               <span class="form-hint">Dispatches red Incident and blue Issue notifications</span>
             </div>
 
-            <button type="button" class="btn btn-cyan" id="btn-save-thresholds">Save Configuration</button>
+            <button type="submit" class="btn btn-cyan" id="btn-save-thresholds">Save Configuration</button>
           </form>
         </div>
       </div>
     </section>
+
+  <!-- Synthetic Test Editor Modal -->
+  <div id="modal-test-editor" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <h3 id="modal-test-editor-title" style="display: flex; align-items: center; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00f2fe" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <span id="test-modal-heading">Add Synthetic Test</span>
+          </h3>
+          <span class="modal-subtext">Configure target URL, test template, and SLA threshold criteria</span>
+        </div>
+        <button class="btn-close" onclick="closeTestEditorModal()">&times;</button>
+      </div>
+      <form id="form-test-editor" onsubmit="handleTestEditorSubmit(event)">
+        <input type="hidden" id="input-test-id">
+        <div class="modal-body" style="padding: 1.25rem;">
+          
+          <div class="form-group" style="margin-bottom: 1rem;">
+            <label for="input-test-name" style="font-size: 0.78rem; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 6px; text-transform: uppercase;">Test Name</label>
+            <input type="text" id="input-test-name" class="config-input" placeholder="e.g. Google Search Latency" required style="width: 100%;">
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem;">
+            <div class="form-group">
+              <label for="input-test-template" style="font-size: 0.78rem; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 6px; text-transform: uppercase;">Test Template</label>
+              <select id="input-test-template" class="config-select" style="width: 100%;">
+                <option value="webserver">Webserver HTTP / HTTPS</option>
+                <option value="dns_resolution">DNS Query Resolution</option>
+                <option value="generic_tcp">Ping / Gateway Reachability</option>
+                <option value="voip_mos">VoIP MOS Quality</option>
+                <option value="iperf3">Throughput (iPerf3)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="input-test-interval" style="font-size: 0.78rem; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 6px; text-transform: uppercase;">Interval (Seconds)</label>
+              <input type="number" id="input-test-interval" class="config-input" value="180" min="15" required style="width: 100%;">
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 1rem;">
+            <div class="form-group">
+              <label for="input-test-target" style="font-size: 0.78rem; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 6px; text-transform: uppercase;">Target (Host / URL / IP)</label>
+              <input type="text" id="input-test-target" class="config-input" placeholder="e.g. https://www.google.com or 1.1.1.1" required style="width: 100%;">
+            </div>
+            <div class="form-group">
+              <label for="input-test-port" style="font-size: 0.78rem; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 6px; text-transform: uppercase;">Port</label>
+              <input type="number" id="input-test-port" class="config-input" value="443" style="width: 100%;">
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem;">
+            <div class="form-group">
+              <label for="input-test-threshold-latency" style="font-size: 0.78rem; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 6px; text-transform: uppercase;">Max Latency SLA (ms)</label>
+              <input type="number" id="input-test-threshold-latency" class="config-input" value="150" required style="width: 100%;">
+            </div>
+            <div class="form-group" style="display: flex; align-items: flex-end; padding-bottom: 6px;">
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #f8fafc; cursor: pointer; user-select: none;">
+                <input type="checkbox" id="input-test-enabled" checked style="width: 18px; height: 18px; accent-color: #00f2fe;">
+                Enable Synthetic Testing
+              </label>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="button" class="btn btn-secondary" onclick="closeTestEditorModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-test-editor">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Save Test
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   </main>
 

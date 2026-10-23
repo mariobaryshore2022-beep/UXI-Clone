@@ -22,6 +22,8 @@ class PulseSensorClient {
     this.netDetails = SystemInfo.getNetworkDetails();
     this.hwDetails = SystemInfo.getHardwareDetails();
 
+    this.activeTests = [];
+
     this.sf = new StoreAndForward(this.serverUrl);
     this.linuxRunner = new LinuxRunner(this.netDetails.activeInterface, 'eth0');
     this.simulator = new Simulator();
@@ -32,6 +34,18 @@ class PulseSensorClient {
 
   async sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async syncTests() {
+    try {
+      const tests = await this.sf.get('/api/tests');
+      if (Array.isArray(tests) && tests.length > 0) {
+        this.activeTests = tests.filter(t => t.is_enabled !== false);
+        console.log(`[Pulse UX Sensor] Dynamic sync: loaded ${this.activeTests.length} active synthetic test definitions from Hub.`);
+      }
+    } catch (err) {
+      console.warn(`[Pulse UX Sensor] Dynamic test sync error: ${err.message}`);
+    }
   }
 
   async register() {
@@ -65,6 +79,7 @@ class PulseSensorClient {
       }
     };
     await this.sf.send('/api/sensors/register', payload);
+    await this.syncTests();
   }
 
   async reportStage(networkName, stage) {
@@ -225,23 +240,33 @@ class PulseSensorClient {
       await this.sleep(1000);
     }
 
-    // 9. Service & Application Tests
+    // 9. Service & Application Tests (Dynamic Synthetic Tests)
     await this.reportStage(netName, 'service_test');
 
-    // VoIP Microsoft Teams MOS Test
-    const voipRes = await this.simulator.testVoipTeams();
-    await this.recordResult(network.id, 'test-voip-teams', 'service_test', voipRes.success, voipRes.durationMs, voipRes.metrics);
-    await this.sleep(1000);
+    if (!this.activeTests || this.activeTests.length === 0) {
+      await this.syncTests();
+    }
 
-    // Salesforce CRM Web App Test
-    const sfRes = await this.simulator.testWebserver('Salesforce', config.controlHosts.salesforceTarget);
-    await this.recordResult(network.id, 'test-web-salesforce', 'service_test', sfRes.success, sfRes.durationMs, sfRes.metrics);
-    await this.sleep(1000);
+    if (this.activeTests && this.activeTests.length > 0) {
+      console.log(`[Test Cycle #${this.cycleCount}] Executing ${this.activeTests.length} active synthetic tests on ${netName}...`);
+      for (const test of this.activeTests) {
+        await this.executeTest(network.id, test);
+        await this.sleep(600);
+      }
+    } else {
+      // Fallback baseline tests if offline
+      const voipRes = await this.simulator.testVoipTeams();
+      await this.recordResult(network.id, 'test-voip-teams', 'service_test', voipRes.success, voipRes.durationMs, voipRes.metrics);
+      await this.sleep(800);
 
-    // iPerf3 Throughput Test
-    const iperfRes = await this.simulator.testThroughput();
-    await this.recordResult(network.id, 'test-iperf-core', 'service_test', iperfRes.success, iperfRes.durationMs, iperfRes.metrics);
-    await this.sleep(1000);
+      const sfRes = await this.simulator.testWebserver('Salesforce', config.controlHosts.salesforceTarget);
+      await this.recordResult(network.id, 'test-web-salesforce', 'service_test', sfRes.success, sfRes.durationMs, sfRes.metrics);
+      await this.sleep(800);
+
+      const iperfRes = await this.simulator.testThroughput();
+      await this.recordResult(network.id, 'test-iperf-core', 'service_test', iperfRes.success, iperfRes.durationMs, iperfRes.metrics);
+      await this.sleep(800);
+    }
 
     // 10. Deauthenticate / Release (Wi-Fi)
     if (network.type === 'wifi') {
@@ -255,26 +280,130 @@ class PulseSensorClient {
     console.log(`[Test Cycle #${this.cycleCount}] Completed network cycle on ${netName}.`);
   }
 
+  // Execute an individual synthetic test definition (live Linux execution or simulated)
+  async executeTest(networkId, test) {
+    const template = test.template || 'webserver';
+    const target = test.target;
+    let res = { success: true, durationMs: 40, metrics: {} };
+
+    console.log(`[Pulse UX Sensor] Executing test '${test.name}' [${template}] -> ${target}`);
+
+    try {
+      if (template === 'webserver' || template === 'external_http') {
+        const url = target.startsWith('http://') || target.startsWith('https://')
+          ? target
+          : `http://${target}${test.port && test.port !== 80 ? ':' + test.port : ''}`;
+
+        if (!this.simulate) {
+          const httpRes = await this.linuxRunner.testHttp(url);
+          res = {
+            success: httpRes.success,
+            durationMs: httpRes.latencyMs,
+            metrics: {
+              http_status: httpRes.httpStatus,
+              latency_ms: httpRes.latencyMs,
+              url
+            }
+          };
+        } else {
+          res = await this.simulator.testWebserver(test.name, url);
+        }
+      } else if (template === 'dns_resolution') {
+        if (!this.simulate) {
+          const dnsRes = await this.linuxRunner.resolveDns('google.com', target);
+          res = {
+            success: dnsRes.success,
+            durationMs: dnsRes.durationMs,
+            metrics: {
+              dns_lookup_time_ms: dnsRes.durationMs,
+              resolver: target
+            }
+          };
+        } else {
+          res = await this.simulator.resolveDns(target);
+        }
+      } else if (template === 'generic_tcp' || template === 'ping') {
+        if (!this.simulate) {
+          const pingRes = await this.linuxRunner.ping(target, 3);
+          res = {
+            success: pingRes.success,
+            durationMs: pingRes.latencyMs,
+            metrics: {
+              latency_ms: pingRes.latencyMs,
+              packet_loss_pct: pingRes.packetLossPct,
+              target
+            }
+          };
+        } else {
+          res = await this.simulator.pingGateway();
+        }
+      } else if (template === 'voip_mos') {
+        res = await this.simulator.testVoipTeams();
+      } else if (template === 'iperf3') {
+        res = await this.simulator.testThroughput();
+      } else {
+        if (!this.simulate) {
+          const httpRes = await this.linuxRunner.testHttp(target.startsWith('http') ? target : `http://${target}`);
+          res = {
+            success: httpRes.success,
+            durationMs: httpRes.latencyMs,
+            metrics: { latency_ms: httpRes.latencyMs, http_status: httpRes.httpStatus }
+          };
+        } else {
+          res = await this.simulator.testWebserver(test.name, target);
+        }
+      }
+    } catch (testErr) {
+      res = {
+        success: false,
+        durationMs: 5000,
+        metrics: { error: testErr.message }
+      };
+    }
+
+    await this.recordResult(
+      networkId,
+      test.id,
+      'service_test',
+      res.success,
+      res.durationMs || res.latencyMs || 50,
+      res.metrics || {},
+      res.success ? null : (res.metrics?.error || `Synthetic test failed: ${test.name}`)
+    );
+  }
+
   // Agent Mode (Runs passive application tests without network churn)
   async runAgentCycle() {
     console.log(`[Agent Cycle #${this.cycleCount}] Running passive app tests on current network...`);
     await this.reportStage('Current Connection', 'service_test');
 
-    // Gateway
-    const gwRes = await this.simulator.pingGateway();
-    await this.recordResult(null, 'test-gw-ping', 'gateway', gwRes.success, gwRes.latencyMs, gwRes.metrics);
+    if (!this.activeTests || this.activeTests.length === 0) {
+      await this.syncTests();
+    }
 
-    // DNS
-    const dnsRes = await this.simulator.resolveDns('8.8.8.8');
-    await this.recordResult(null, 'test-dns-sec', 'primary_dns', dnsRes.success, dnsRes.durationMs, { dns_lookup_time_ms: dnsRes.durationMs });
+    if (this.activeTests && this.activeTests.length > 0) {
+      console.log(`[Agent Cycle #${this.cycleCount}] Running ${this.activeTests.length} synthetic tests...`);
+      for (const test of this.activeTests) {
+        await this.executeTest(null, test);
+        await this.sleep(600);
+      }
+    } else {
+      // Gateway
+      const gwRes = await this.simulator.pingGateway();
+      await this.recordResult(null, 'test-gw-ping', 'gateway', gwRes.success, gwRes.latencyMs, gwRes.metrics);
 
-    // VoIP Teams MOS
-    const voipRes = await this.simulator.testVoipTeams();
-    await this.recordResult(null, 'test-voip-teams', 'service_test', voipRes.success, voipRes.durationMs, voipRes.metrics);
+      // DNS
+      const dnsRes = await this.simulator.resolveDns('8.8.8.8');
+      await this.recordResult(null, 'test-dns-sec', 'primary_dns', dnsRes.success, dnsRes.durationMs, { dns_lookup_time_ms: dnsRes.durationMs });
 
-    // Salesforce
-    const sfRes = await this.simulator.testWebserver('Salesforce', config.controlHosts.salesforceTarget);
-    await this.recordResult(null, 'test-web-salesforce', 'service_test', sfRes.success, sfRes.durationMs, sfRes.metrics);
+      // VoIP Teams MOS
+      const voipRes = await this.simulator.testVoipTeams();
+      await this.recordResult(null, 'test-voip-teams', 'service_test', voipRes.success, voipRes.durationMs, voipRes.metrics);
+
+      // Salesforce
+      const sfRes = await this.simulator.testWebserver('Salesforce', config.controlHosts.salesforceTarget);
+      await this.recordResult(null, 'test-web-salesforce', 'service_test', sfRes.success, sfRes.durationMs, sfRes.metrics);
+    }
 
     console.log(`[Agent Cycle #${this.cycleCount}] Passive test cycle complete.`);
   }
@@ -299,6 +428,9 @@ class PulseSensorClient {
     console.log(`\n===============================================================`);
     console.log(`[OPERATOR COMMAND RECEIVED] Action: ${command.action.toUpperCase()} (Command ID: ${command.id})`);
     console.log(`===============================================================`);
+
+    // Sync any newly configured tests prior to running triggered cycle
+    await this.syncTests();
 
     if (command.action === 'run_cycle') {
       if (this.isCycleExecuting) {

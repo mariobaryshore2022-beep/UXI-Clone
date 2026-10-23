@@ -505,11 +505,123 @@ router.get('/triage/:id', async (req, res) => {
   }
 });
 
-// 9. Test Definitions & Thresholds
+// 9. Test Definitions & Thresholds CRUD
 router.get('/tests', async (req, res) => {
   try {
-    const results = await query('SELECT * FROM test_definitions ORDER BY name ASC');
+    const results = await query('SELECT * FROM test_definitions ORDER BY created_at ASC');
     res.json(results.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/tests', async (req, res) => {
+  try {
+    const { name, template, target, port, is_external, interval_seconds, thresholds, is_enabled } = req.body;
+    if (!name || !target) {
+      return res.status(400).json({ error: 'Test name and target required' });
+    }
+
+    const id = `test-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+    const result = await query(`
+      INSERT INTO test_definitions (id, name, template, target, port, is_external, interval_seconds, thresholds, is_enabled)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *
+    `, [
+      id,
+      name,
+      template || 'webserver',
+      target,
+      port !== undefined && port !== null && port !== '' ? parseInt(port, 10) : 443,
+      is_external !== undefined ? Boolean(is_external) : true,
+      interval_seconds ? parseInt(interval_seconds, 10) : 180,
+      JSON.stringify(thresholds || { max_latency_ms: 150 }),
+      is_enabled !== undefined ? Boolean(is_enabled) : true
+    ]);
+
+    broadcastEvent('tests_updated', { action: 'created', test: result.rows[0] });
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/tests/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, template, target, port, is_external, interval_seconds, thresholds, is_enabled } = req.body;
+
+    const result = await query(`
+      UPDATE test_definitions
+      SET name = COALESCE($1, name),
+          template = COALESCE($2, template),
+          target = COALESCE($3, target),
+          port = COALESCE($4, port),
+          is_external = COALESCE($5, is_external),
+          interval_seconds = COALESCE($6, interval_seconds),
+          thresholds = COALESCE($7, thresholds),
+          is_enabled = COALESCE($8, is_enabled)
+      WHERE id = $9
+      RETURNING *
+    `, [
+      name || null,
+      template || null,
+      target || null,
+      port !== undefined && port !== null && port !== '' ? parseInt(port, 10) : null,
+      is_external !== undefined ? Boolean(is_external) : null,
+      interval_seconds ? parseInt(interval_seconds, 10) : null,
+      thresholds ? JSON.stringify(thresholds) : null,
+      is_enabled !== undefined ? Boolean(is_enabled) : null,
+      id
+    ]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Test not found' });
+    }
+
+    broadcastEvent('tests_updated', { action: 'updated', test: result.rows[0] });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/tests/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await query('DELETE FROM test_definitions WHERE id = $1', [id]);
+    broadcastEvent('tests_updated', { action: 'deleted', id });
+    res.json({ status: 'ok', id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 9b. Global SLA Threshold Settings
+router.get('/settings/thresholds', async (req, res) => {
+  try {
+    const result = await query("SELECT value FROM system_settings WHERE key = 'global_thresholds'");
+    if (result.rows.length > 0) {
+      res.json(result.rows[0].value);
+    } else {
+      res.json({ max_dhcp_ms: 2000, max_dns_ms: 100, min_mos: 3.8, min_throughput_mbps: 40, webhook_url: '' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/settings/thresholds', async (req, res) => {
+  try {
+    const settings = req.body;
+    await query(`
+      INSERT INTO system_settings (key, value, updated_at)
+      VALUES ('global_thresholds', $1, NOW())
+      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+    `, [JSON.stringify(settings)]);
+
+    broadcastEvent('thresholds_updated', settings);
+    res.json({ status: 'ok', settings });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

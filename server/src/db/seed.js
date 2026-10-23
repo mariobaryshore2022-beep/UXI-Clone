@@ -93,6 +93,24 @@ async function seedData() {
       ('ext-8', 'external', 'GitHub Enterprise', 'https://github.com', 'webserver', 'green', '', true, 8)
     `);
   }
+
+  // Ensure system_settings table exists
+  await query(`
+    CREATE TABLE IF NOT EXISTS system_settings (
+      key VARCHAR(64) PRIMARY KEY,
+      value JSONB NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  const existingSettings = await query("SELECT count(*) as count FROM system_settings WHERE key = 'global_thresholds'");
+  if (parseInt(existingSettings.rows[0].count, 10) === 0) {
+    await query(`
+      INSERT INTO system_settings (key, value)
+      VALUES ('global_thresholds', '{"max_dhcp_ms": 2000, "max_dns_ms": 100, "min_mos": 3.8, "min_throughput_mbps": 40, "webhook_url": ""}'::jsonb)
+      ON CONFLICT (key) DO NOTHING;
+    `);
+  }
 }
 
 module.exports = { seedData };

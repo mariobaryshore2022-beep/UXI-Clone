@@ -114,5 +114,44 @@ const API = {
       body: JSON.stringify({ action, params })
     });
     return await res.json();
+  },
+
+  async createTest(data) {
+    const res = await fetch(`${this.baseUrl}/tests`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return await res.json();
+  },
+
+  async updateTest(id, data) {
+    const res = await fetch(`${this.baseUrl}/tests/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return await res.json();
+  },
+
+  async deleteTest(id) {
+    const res = await fetch(`${this.baseUrl}/tests/${encodeURIComponent(id)}`, {
+      method: 'DELETE'
+    });
+    return await res.json();
+  },
+
+  async getGlobalThresholds() {
+    const res = await fetch(`${this.baseUrl}/settings/thresholds`);
+    return await res.json();
+  },
+
+  async updateGlobalThresholds(data) {
+    const res = await fetch(`${this.baseUrl}/settings/thresholds`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return await res.json();
   }
 };
