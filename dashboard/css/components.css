@@ -1345,7 +1345,7 @@
 
 .psc-table-header {
   display: grid;
-  grid-template-columns: 140px 110px 1fr;
+  grid-template-columns: 180px 95px 1fr;
   align-items: center;
   font-size: 0.68rem;
   font-weight: 700;
@@ -1373,7 +1373,7 @@
 
 .psc-row {
   display: grid;
-  grid-template-columns: 140px 110px 1fr;
+  grid-template-columns: 180px 95px 1fr;
   align-items: center;
   font-size: 0.76rem;
   padding: 2px 0;

@@ -125,6 +125,12 @@ function renderSimpleViewData(data) {
   renderExternalPillar(hasDegradedExt ? 'bad' : 'good', evaluatedExt);
 
   // 5. Bind Interactive Hover Details for All Items Across 4 Pillars
+  data.evaluatedPillars = {
+    experience: evaluatedExp,
+    services: evaluatedSrv,
+    internal: evaluatedInt,
+    external: evaluatedExt
+  };
   const allEvaluatedItems = [...evaluatedExp, ...evaluatedSrv, ...evaluatedInt, ...evaluatedExt];
   bindSimpleItemHoverEvents(allEvaluatedItems, data);
 
@@ -1146,44 +1152,24 @@ function showPillarSummaryCard(circleEl, pillar, currentData) {
 
 function renderPscSparkline(pattern) {
   const bars = [];
-  const barCount = 28;
+  const barCount = 24;
   for (let i = 0; i < barCount; i++) {
-    let color = '#4f75ff';
-    let h = 4;
-    if (pattern === 'emea') {
-      const isRed = (i >= 0 && i <= 3) || (i >= 12 && i <= 15) || (i >= 22 && i <= 24);
-      color = isRed ? '#e76f51' : '#4f75ff';
-      h = isRed ? (12 + (i % 3) * 2) : (7 + (i % 4) * 2);
-    } else if (pattern === 'na') {
-      const isRed = (i % 5 === 0);
-      color = isRed ? '#e76f51' : '#4f75ff';
-      h = (i % 2 === 0) ? 6 : 4;
-    } else if (pattern === 'apj') {
-      const isRed = (i % 4 === 0);
-      color = isRed ? '#e76f51' : '#4f75ff';
-      h = 5;
-    } else if (pattern === '6e') {
-      color = '#4f75ff';
-      h = (i < 20) ? 5 : 2;
-    } else if (pattern === 'laptops') {
-      const isRed = (i >= 2 && i <= 7) || (i >= 16 && i <= 19);
-      color = isRed ? '#e76f51' : (i < 22 ? '#4f75ff' : '#282b34');
-      h = isRed ? 7 : 5;
-    } else if (pattern === 'android') {
-      color = (i >= 6 && i <= 12) ? '#4f75ff' : '#65c18c';
-      h = 4;
-    } else if (pattern === 'staging') {
+    let color = '#65c18c';
+    let h = 5;
+    if (pattern === 'red') {
+      const isSpike = (i % 3 === 0);
+      color = isSpike ? '#e76f51' : '#4f75ff';
+      h = isSpike ? (10 + (i % 2) * 4) : 5;
+    } else if (pattern === 'blue') {
+      color = (i % 4 === 0) ? '#4f75ff' : '#65c18c';
+      h = (i % 4 === 0) ? 8 : 4;
+    } else if (pattern === 'gray') {
       color = '#475569';
       h = 3;
-    } else if (pattern === 'red') {
-      color = (i % 2 === 0) ? '#e76f51' : '#4f75ff';
-      h = (i % 3 === 0) ? 12 : 6;
-    } else if (pattern === 'green') {
-      color = '#65c18c';
-      h = (i % 4 === 0) ? 8 : 4;
     } else {
-      color = '#4f75ff';
-      h = (i % 3 === 0) ? 8 : 4;
+      // green
+      color = '#65c18c';
+      h = (i % 5 === 0) ? 7 : 4;
     }
     bars.push(`<div class="psc-spark-bar" style="height: ${h}px; background: ${color};"></div>`);
   }
@@ -1191,156 +1177,138 @@ function renderPscSparkline(pattern) {
 }
 
 function generatePillarSummaryData(pillar, currentData) {
+  // Retrieve the actual items belonging to this pillar
+  const items = (currentData.evaluatedPillars && currentData.evaluatedPillars[pillar]) ||
+                (currentData.pillars && currentData.pillars[pillar]) ||
+                [];
+
+  const redItems = items.filter(it => it.status === 'red');
+  const blueItems = items.filter(it => it.status === 'blue');
+  const grayItems = items.filter(it => it.status === 'gray' || it.is_enabled === false);
+  const greenItems = items.filter(it => it.status === 'green' || (!it.status && it.is_enabled !== false));
+
+  const redCount = redItems.length;
+  const blueCount = blueItems.length;
+  const greenCount = greenItems.length;
+  const grayCount = grayItems.length;
+  const totalCount = items.length;
+
+  const accentColor = redCount > 0 ? '#e76f51' : (blueCount > 0 ? '#4f75ff' : '#65c18c');
+
+  const activeIncidents = (currentData.incidents || []).filter(i => i.status === 'open' || i.status === 'investigating');
+  const activeIssues = (currentData.issues || []).filter(i => i.status === 'active');
+
+  // Filter issues/incidents specifically relevant to this pillar
+  const pillarKeywordMap = {
+    experience: ['wifi', 'wi-fi', 'network', 'portal', 'dhcp', 'ethernet', 'vlan', 'wlan', 'bssid'],
+    services: ['dhcp', 'dns', 'gateway', 'arp', 'ping', 'link', 'associat', 'interface', 'core'],
+    internal: ['ehr', 'pacs', 'active directory', 'kerberos', 'intranet', 'iperf', 'internal', 'cluster'],
+    external: ['microsoft', '365', 'teams', 'voip', 'salesforce', 'google', 'aws', 'cloud', 'slack', 'github', 'zoom']
+  };
+
+  const keywords = pillarKeywordMap[pillar] || [];
+  const matchesPillar = (text) => {
+    const t = (text || '').toLowerCase();
+    return keywords.some(k => t.includes(k));
+  };
+
+  const relIncidents = activeIncidents.filter(inc => matchesPillar(`${inc.title} ${inc.summary} ${inc.impact_scope}`));
+  const relIssues = activeIssues.filter(iss => matchesPillar(`${iss.title} ${iss.description} ${iss.metric_name}`));
+
+  let issueList = [];
+  if (relIncidents.length > 0 || relIssues.length > 0) {
+    issueList = [
+      ...relIncidents.map(inc => ({
+        name: inc.title || inc.summary,
+        scope: inc.impact_scope || 'HQ Wireless',
+        color: 'red'
+      })),
+      ...relIssues.map(iss => ({
+        name: iss.title || iss.description,
+        scope: iss.sensor_name || iss.sensor_id || 'Active Sensor',
+        color: 'blue'
+      }))
+    ];
+  } else if (redCount > 0) {
+    issueList = redItems.map(it => ({
+      name: `${it.name} test threshold breached`,
+      scope: '1 Sensor',
+      color: 'red'
+    }));
+  } else if (activeIncidents.length > 0 || activeIssues.length > 0) {
+    // If there is an active incident elsewhere in system
+    issueList = [
+      ...activeIncidents.slice(0, 1).map(inc => ({ name: inc.title, scope: inc.impact_scope || 'Fleet', color: 'red' })),
+      ...activeIssues.slice(0, 1).map(iss => ({ name: iss.title, scope: iss.sensor_name || 'Fleet', color: 'blue' }))
+    ];
+  } else {
+    const noun = pillar === 'experience' ? 'networks' : (pillar === 'services' ? 'services' : 'applications');
+    issueList = [
+      { name: `All monitored ${noun} operating within SLA`, scope: 'Optimal', color: 'green' }
+    ];
+  }
+
+  // Titles & Column labels
+  let title = 'All Monitored Networks';
+  let colName = 'NETWORKS';
+  let colNow = 'HEALTH NOW';
+
   if (pillar === 'experience') {
-    return {
-      title: 'All Sensors',
-      accentColor: '#e76f51',
-      counts: {
-        total: 37,
-        red: 1,
-        blue: 14,
-        green: 2,
-        gray: 20
-      },
-      columns: {
-        name: 'GROUPS',
-        now: 'SENSORS NOW',
-        hist: 'LAST 24H'
-      },
-      rows: [
-        { name: 'EMEA', count: 7, barColor: '#4f75ff', sparkPattern: 'emea' },
-        { name: 'North America', count: 7, barColor: '#4f75ff', sparkPattern: 'na' },
-        { name: 'APJ', count: 3, barColor: '#4f75ff', sparkPattern: 'apj' },
-        { name: '6E sensor', count: 1, barColor: '#4f75ff', sparkPattern: '6e' },
-        {
-          name: 'Laptop Agents',
-          count: 10,
-          barSegments: [
-            { width: 18, color: '#e76f51' },
-            { width: 82, color: '#4f75ff' }
-          ],
-          sparkPattern: 'laptops'
-        },
-        { name: 'Android Agents', count: 6, barColor: '#65c18c', sparkPattern: 'android' },
-        { name: 'staging', count: 3, barColor: '#64748b', sparkPattern: 'staging' }
-      ],
-      ongoing: {
-        critCount: 4,
-        warnCount: 188,
-        issues: [
-          { name: 'Unexpected HTTPS status code', scope: '2 Sensors  2 Networks', color: 'red' },
-          { name: 'Unexpected HTTP status code', scope: '2 Sensors  2 Networks', color: 'red' },
-          { name: 'SSL error', scope: '26 Sensors  33 Networks', color: 'blue' },
-          { name: 'SSL error', scope: '26 Sensors  33 Networks', color: 'blue' },
-          { name: 'High latency', scope: '16 Sensors  20 Networks', color: 'blue' }
-        ],
-        moreIssues: '... 14 other issues'
-      }
-    };
+    title = 'All Monitored Networks';
+    colName = 'NETWORKS';
+    colNow = 'HEALTH NOW';
+  } else if (pillar === 'services') {
+    title = 'All Core Services';
+    colName = 'SERVICES';
+    colNow = 'HEALTH NOW';
+  } else if (pillar === 'internal') {
+    title = 'All Internal Applications';
+    colName = 'APPLICATIONS';
+    colNow = 'HEALTH NOW';
+  } else if (pillar === 'external') {
+    title = 'All External Services';
+    colName = 'CLOUD SERVICES';
+    colNow = 'HEALTH NOW';
   }
 
-  if (pillar === 'services') {
-    return {
-      title: 'All Services',
-      accentColor: '#e76f51',
-      counts: {
-        total: 16,
-        red: 1,
-        blue: 3,
-        green: 11,
-        gray: 1
-      },
-      columns: {
-        name: 'SERVICES',
-        now: 'STATUS NOW',
-        hist: 'LAST 24H'
-      },
-      rows: [
-        { name: 'Wi-Fi 6E Associator', count: 3, barColor: '#4f75ff', sparkPattern: 'blue' },
-        { name: 'Ethernet Interface', count: 1, barColor: '#65c18c', sparkPattern: 'green' },
-        { name: 'DHCPv4 (DORA Handshake)', count: 1, barColor: '#e76f51', sparkPattern: 'red' },
-        { name: 'Default Gateway (192.168.1.1)', count: 4, barColor: '#4f75ff', sparkPattern: 'blue' },
-        { name: 'Corporate DNS (AD DNS)', count: 4, barColor: '#65c18c', sparkPattern: 'green' },
-        { name: 'Public DNS (1.1.1.1 / 8.8.8.8)', count: 3, barColor: '#65c18c', sparkPattern: 'green' }
-      ],
-      ongoing: {
-        critCount: 1,
-        warnCount: 3,
-        issues: [
-          { name: 'DHCP lease negotiation timeout (>2000ms)', scope: '1 Sensor  1 Network', color: 'red' },
-          { name: 'Corporate DNS resolution latency elevated', scope: '2 Sensors  2 Networks', color: 'blue' },
-          { name: 'Default Gateway ICMP packet loss detected', scope: '1 Sensor  1 Network', color: 'blue' }
-        ],
-        moreIssues: null
-      }
-    };
-  }
+  const sensorCount = (currentData.sensors && currentData.sensors.length) || 1;
 
-  if (pillar === 'internal') {
-    return {
-      title: 'All Internal Applications',
-      accentColor: '#e76f51',
-      counts: {
-        total: 12,
-        red: 1,
-        blue: 2,
-        green: 8,
-        gray: 1
-      },
-      columns: {
-        name: 'APPLICATIONS',
-        now: 'HEALTH NOW',
-        hist: 'LAST 24H'
-      },
-      rows: [
-        { name: 'Bayshore EHR Patient Portal', count: 3, barColor: '#e76f51', sparkPattern: 'red' },
-        { name: 'Clinical PACS Imaging DICOM', count: 2, barColor: '#4f75ff', sparkPattern: 'blue' },
-        { name: 'Active Directory Kerberos', count: 2, barColor: '#65c18c', sparkPattern: 'green' },
-        { name: 'Intranet Core API', count: 3, barColor: '#65c18c', sparkPattern: 'green' },
-        { name: 'iPerf3 Bandwidth Server', count: 2, barColor: '#65c18c', sparkPattern: 'green' }
-      ],
-      ongoing: {
-        critCount: 1,
-        warnCount: 2,
-        issues: [
-          { name: 'EHR Patient Portal 504 Gateway Timeout', scope: '1 Sensor  2 Networks', color: 'red' },
-          { name: 'PACS DICOM latency threshold breached (>300ms)', scope: '2 Sensors  2 Networks', color: 'blue' }
-        ],
-        moreIssues: null
-      }
-    };
-  }
+  // Convert each actual item in this pillar into a row
+  const rows = items.map(it => {
+    const isRed = it.status === 'red';
+    const isBlue = it.status === 'blue';
+    const isGray = it.status === 'gray' || it.is_enabled === false;
+    const color = isRed ? '#e76f51' : (isBlue ? '#4f75ff' : (isGray ? '#64748b' : '#65c18c'));
+    const spark = isRed ? 'red' : (isBlue ? 'blue' : (isGray ? 'gray' : 'green'));
 
-  // External (Cloud & SaaS)
+    return {
+      name: it.name,
+      count: isGray ? 0 : sensorCount,
+      barColor: color,
+      sparkPattern: spark
+    };
+  });
+
   return {
-    title: 'All External Services',
-    accentColor: '#65c18c',
+    title,
+    accentColor,
     counts: {
-      total: 18,
-      red: 0,
-      blue: 2,
-      green: 16,
-      gray: 0
+      total: totalCount,
+      red: redCount,
+      blue: blueCount,
+      green: greenCount,
+      gray: grayCount
     },
     columns: {
-      name: 'CLOUD SERVICES',
-      now: 'HEALTH NOW',
+      name: colName,
+      now: colNow,
       hist: 'LAST 24H'
     },
-    rows: [
-      { name: 'Microsoft 365 & Entra ID', count: 5, barColor: '#65c18c', sparkPattern: 'green' },
-      { name: 'Teams VoIP Media Relays', count: 4, barColor: '#4f75ff', sparkPattern: 'blue' },
-      { name: 'Google Workspace / Gmail', count: 3, barColor: '#65c18c', sparkPattern: 'green' },
-      { name: 'Salesforce Health Cloud', count: 3, barColor: '#65c18c', sparkPattern: 'green' },
-      { name: 'Slack Realtime API', count: 3, barColor: '#65c18c', sparkPattern: 'green' }
-    ],
+    rows,
     ongoing: {
-      critCount: 0,
-      warnCount: 2,
-      issues: [
-        { name: 'Teams VoIP MOS score degraded (MOS 3.7)', scope: '1 Sensor  2 Networks', color: 'blue' },
-        { name: 'Microsoft 365 OAuth latency spike', scope: '1 Sensor  1 Network', color: 'blue' }
-      ],
+      critCount: relIncidents.length || (redCount > 0 ? 1 : 0),
+      warnCount: relIssues.length || (blueCount > 0 ? 1 : 0),
+      issues: issueList,
       moreIssues: null
     }
   };
