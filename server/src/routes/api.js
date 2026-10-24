@@ -7,6 +7,12 @@ const { query } = require('../db');
 const { broadcastEvent } = require('./sse');
 const { evaluateResult } = require('../engine/thresholdEngine');
 const { correlateIncidents } = require('../engine/incidentEngine');
+const { probeItem } = require('../engine/proberEngine');
+
+// 0. Root API Health
+router.get('/', (req, res) => {
+  res.json({ status: 'ok', service: 'Pulse Core API', version: '2.4.0' });
+});
 
 // 1. Overview & Experience Score
 router.get('/overview', async (req, res) => {
@@ -801,7 +807,33 @@ router.get('/export/telemetry', async (req, res) => {
 router.get('/tests', async (req, res) => {
   try {
     const results = await query('SELECT * FROM test_definitions ORDER BY created_at ASC');
-    res.json(results.rows);
+    
+    // Also include enabled simple_view_items that have valid probe targets so sensors dynamically execute them
+    const customItems = await query(`
+      SELECT id, name, test_type as template, target, 80 as port, 
+             (pillar = 'external') as is_external, 120 as interval_seconds,
+             '{}'::jsonb as thresholds, is_enabled, created_at
+      FROM simple_view_items
+      WHERE target IS NOT NULL AND target != '' AND (target LIKE '%.%' OR target LIKE '%/%' OR target LIKE '%:%') AND is_enabled = true
+    `);
+
+    const existingTargets = new Set(results.rows.map(t => (t.target || '').toLowerCase()));
+    const extraTests = customItems.rows
+      .filter(it => !existingTargets.has((it.target || '').toLowerCase()))
+      .map(it => ({
+        id: `test-${it.id}`,
+        name: it.name,
+        template: it.template || 'webserver',
+        target: it.target,
+        port: it.target.includes(':') ? parseInt(it.target.split(':')[1], 10) : (it.target.startsWith('https') ? 443 : 80),
+        is_external: Boolean(it.is_external),
+        interval_seconds: 120,
+        thresholds: { max_latency_ms: 250 },
+        is_enabled: Boolean(it.is_enabled),
+        created_at: it.created_at
+      }));
+
+    res.json([...results.rows, ...extraTests]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1094,6 +1126,20 @@ router.post('/simple-view/items', async (req, res) => {
 
     broadcastEvent('simple_view_updated', { action: 'create', id, pillar });
     res.status(201).json({ status: 'ok', id });
+
+    // Trigger immediate proactive synthetic probe for this newly added item
+    if (target && target.trim()) {
+      setImmediate(() => {
+        probeItem({
+          id,
+          pillar,
+          name,
+          target: target.trim(),
+          test_type: test_type || 'webserver',
+          is_enabled: is_enabled !== undefined ? Boolean(is_enabled) : true
+        });
+      });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1134,6 +1180,20 @@ router.put('/simple-view/items/:id', async (req, res) => {
 
     broadcastEvent('simple_view_updated', { action: 'update', id, pillar: cur.pillar });
     res.json({ status: 'ok', id });
+
+    const updatedTarget = target !== undefined ? target : cur.target;
+    if (updatedTarget && updatedTarget.trim()) {
+      setImmediate(() => {
+        probeItem({
+          id,
+          pillar: cur.pillar,
+          name: name !== undefined ? name : cur.name,
+          target: updatedTarget.trim(),
+          test_type: test_type !== undefined ? test_type : cur.test_type,
+          is_enabled: is_enabled !== undefined ? Boolean(is_enabled) : cur.is_enabled
+        });
+      });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1147,6 +1207,7 @@ router.delete('/simple-view/items/:id', async (req, res) => {
     const pillar = existing.rows[0]?.pillar;
 
     await query('DELETE FROM simple_view_items WHERE id = $1', [id]);
+    await query('DELETE FROM issues WHERE id = $1', [`iss-probe-${id}`]);
     broadcastEvent('simple_view_updated', { action: 'delete', id, pillar });
     res.json({ status: 'ok', deleted: id });
   } catch (err) {

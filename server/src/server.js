@@ -36,11 +36,16 @@ app.use((req, res, next) => {
   res.sendFile(path.join(dashboardPath, 'index.html'));
 });
 
+const { startProberLoop } = require('./engine/proberEngine');
+
 async function startServer() {
   try {
     console.log('--- Pulse UX Hub Server Starting ---');
     await initDb();
     await seedData();
+
+    // Start Real-Time Synthetic Prober Loop (probes web, DNS, TCP targets and evaluates health)
+    startProberLoop(25000);
 
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`Pulse UX Hub listening on http://0.0.0.0:${PORT}`);

@@ -87,15 +87,33 @@ function renderSimpleViewData(data) {
     // Check if item correlates with any active incident or issue
     const nameLower = (item.name || '').toLowerCase();
     const targetLower = (item.target || '').toLowerCase();
+    const idLower = (item.id || '').toLowerCase();
+
+    // 1. Direct active issue correlation by item ID, name, or target
+    const hasCorrelatedIssue = activeIssues.some(iss => {
+      const issText = `${iss.title || ''} ${iss.description || ''} ${iss.metric_name || ''} ${iss.test_id || ''}`.toLowerCase();
+      return (nameLower && issText.includes(nameLower)) || 
+             (targetLower && issText.includes(targetLower)) || 
+             (idLower && issText.includes(idLower));
+    });
+
+    const hasCorrelatedIncident = activeIncidents.some(inc => {
+      const incText = `${inc.title || ''} ${inc.description || ''} ${inc.summary || ''}`.toLowerCase();
+      return (nameLower && incText.includes(nameLower)) || (targetLower && incText.includes(targetLower));
+    });
+
+    if (hasCorrelatedIssue || hasCorrelatedIncident || item.status === 'red') {
+      return { 
+        status: 'red', 
+        icon: (nameLower.includes('wi-fi') || item.test_type === 'network') ? 'wifi' : 'bolt' 
+      };
+    }
 
     if (hasDhcpFailure && (nameLower.includes('dhcp') || nameLower.includes('gateway') || nameLower.includes('wi-fi') || targetLower.includes('dora'))) {
       return { status: 'red', icon: nameLower.includes('wi-fi') ? 'wifi' : 'bolt' };
     }
     if (hasVoipIssue && (nameLower.includes('voip') || nameLower.includes('teams') || targetLower.includes('teams'))) {
       return { status: 'red', icon: 'bolt' };
-    }
-    if (activeIncidents.some(inc => inc.title?.toLowerCase().includes(nameLower) || inc.description?.toLowerCase().includes(nameLower))) {
-      return { status: 'red', icon: 'wifi' };
     }
 
     return { status: item.status || 'green', icon: item.icon_type || '' };
@@ -844,12 +862,37 @@ function generateItemHoverDetails(item, currentData) {
   }
 
   // 2. Ongoing Issues / Incidents
-  let ongoingCount = isRed ? 1 : (isYellow ? 1 : 0);
+  const issues = (currentData && currentData.issues) || [];
+  const incidents = (currentData && currentData.incidents) || [];
+  const nameLower = name.toLowerCase();
+  const targetLower = target.toLowerCase();
+  const idLower = (item.id || '').toLowerCase();
+
+  const matchedIssue = issues.find(iss => {
+    const issText = `${iss.title || ''} ${iss.description || ''} ${iss.metric_name || ''} ${iss.test_id || ''}`.toLowerCase();
+    return (nameLower && issText.includes(nameLower)) || 
+           (targetLower && issText.includes(targetLower)) || 
+           (idLower && issText.includes(idLower));
+  });
+
+  const matchedIncident = incidents.find(inc => {
+    const incText = `${inc.title || ''} ${inc.description || ''} ${inc.summary || ''}`.toLowerCase();
+    return (nameLower && incText.includes(nameLower)) || 
+           (targetLower && incText.includes(targetLower));
+  });
+
+  let ongoingCount = (matchedIssue || matchedIncident || isRed) ? 1 : (isYellow ? 1 : 0);
   let ongoingBulletColor = accentColor;
   let ongoingDesc = '';
   let ongoingTags = [];
 
-  if (name.toLowerCase().includes('scarif')) {
+  if (matchedIssue) {
+    ongoingDesc = `• ${matchedIssue.title || matchedIssue.description}`;
+    ongoingTags = [target || name, matchedIssue.metric_name || 'Probe Alert'];
+  } else if (matchedIncident) {
+    ongoingDesc = `• ${matchedIncident.title || matchedIncident.summary}`;
+    ongoingTags = [target || name, 'Degraded Incident'];
+  } else if (name.toLowerCase().includes('scarif')) {
     ongoingDesc = '• Web application test failed to complete';
     ongoingTags = ['Cape', 'Microsoft Office Login and Logout'];
   } else if (name.toLowerCase().includes('pos') || name.toLowerCase().includes('mobile')) {
@@ -882,7 +925,28 @@ function generateItemHoverDetails(item, currentData) {
   const liveGw = liveSensor.hardware_info?.gateway || '192.168.1.1';
   const liveMac = liveSensor.mac_address || '18:cc:18:d5:ed:a0';
 
-  if (pillar === 'experience' || testType === 'network') {
+  const isWebTarget = testType === 'webserver' ||
+                      testType === 'http' ||
+                      testType === 'https' ||
+                      (target && (target.includes('.') || target.startsWith('http')) && !nameLower.includes('wired') && !nameLower.includes('eth0') && !nameLower.includes('vlan') && !nameLower.includes('wifi') && !nameLower.includes('wi-fi'));
+
+  if (isWebTarget) {
+    const isDnsError = matchedIssue && (matchedIssue.title?.includes('DNS') || matchedIssue.description?.includes('ENOTFOUND') || matchedIssue.description?.includes('DNS'));
+    const dnsStatus = isDnsError ? 'Failed (ENOTFOUND)' : (isRed ? 'Lookup Failed' : 'Resolved');
+    const httpStatus = isRed ? (isDnsError ? '0 (Host Unreachable)' : '504 Gateway Timeout') : '200 OK';
+    const latency = isRed ? 'Timeout / Failed' : (isYellow ? '320 ms' : '48 ms');
+    const proto = target.startsWith('http://') ? 'HTTP/1.1' : (target.startsWith('https://') ? 'HTTPS/TLS' : 'HTTPS/1.3');
+
+    latestValues = [
+      { label: 'Target URL', value: target || name },
+      { label: 'Protocol', value: proto },
+      { label: 'HTTP Status', value: httpStatus },
+      { label: 'DNS Resolution', value: dnsStatus },
+      { label: 'Latency / RTT', value: latency },
+      { label: 'Health State', value: isRed ? 'CRITICAL (Out of SLA)' : 'HEALTHY' },
+      { label: 'Last Check', value: 'Just now' }
+    ];
+  } else if (pillar === 'experience' || testType === 'network') {
     const isWired = name.toLowerCase().includes('wired') || name.toLowerCase().includes('eth0');
     if (isWired) {
       latestValues = [
